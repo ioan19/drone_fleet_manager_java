@@ -5,52 +5,93 @@
 <?import javafx.scene.web.WebView?>
 
 <BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-            fx:controller="dronefleet.MapController" prefWidth="1100" prefHeight="750"
+            fx:controller="dronefleet.MapController" 
+            prefWidth="1200" prefHeight="800"
             stylesheets="@style.css">
 
+    <!-- HEADER -->
     <top>
         <HBox spacing="20" styleClass="card" alignment="CENTER_LEFT">
             <padding><Insets top="15" right="20" bottom="15" left="20"/></padding>
+            
             <VBox>
-                <Label text="Mission Control Center" styleClass="h1"/>
-                <Label fx:id="statusLabel" text="Selectează o destinație..." styleClass="label-dim"/>
+                <Label text="🗺️ Mission Control Center" styleClass="h1"/>
+                <Label fx:id="statusLabel" text="Selectează 2 puncte pe hartă pentru a planifica misiunea" 
+                       styleClass="label-dim"/>
             </VBox>
+            
             <Pane HBox.hgrow="ALWAYS"/>
             
-            <VBox spacing="2" style="-fx-background-color: #f4f7f6; -fx-padding: 8; -fx-background-radius: 5; -fx-border-color: #bdc3c7; -fx-border-radius: 5;">
-                <Label text="Condiții Meteo" style="-fx-font-size:10; -fx-font-weight:bold;"/>
-                <Label fx:id="weatherLabel" text="-- °C" style="-fx-font-weight:bold;"/>
-                <Label fx:id="windLabel" text="Vânt: -- km/h" style="-fx-font-size:10;"/>
+            <!-- Info Meteo -->
+            <VBox spacing="3" alignment="CENTER" 
+                  style="-fx-background-color: #ecf0f1; -fx-padding: 10; -fx-background-radius: 6; -fx-border-color: #bdc3c7; -fx-border-radius: 6; -fx-border-width: 1;">
+                <Label text="METEO DESTINAȚIE" style="-fx-font-size:9; -fx-font-weight:bold; -fx-text-fill:#7f8c8d;"/>
+                <Label fx:id="weatherLabel" text="-- °C" 
+                       style="-fx-font-size:16; -fx-font-weight:bold; -fx-text-fill:#2c3e50;"/>
+                <Label fx:id="windLabel" text="Vânt: -- km/h" 
+                       style="-fx-font-size:10; -fx-text-fill:#7f8c8d;"/>
             </VBox>
         </HBox>
     </top>
 
+    <!-- CONȚINUT PRINCIPAL -->
     <center>
-        <SplitPane dividerPositions="0.3" style="-fx-background-color:transparent; -fx-padding: 10;">
+        <SplitPane dividerPositions="0.25" style="-fx-background-color:transparent; -fx-padding: 10;">
             <items>
-                <VBox spacing="15" styleClass="card">
-                    <Label text="Configurare" styleClass="h2"/>
+                <!-- SIDEBAR STÂNGA - LOCAȚII & CONFIGURARE -->
+                <VBox spacing="15" styleClass="card" style="-fx-min-width: 280;">
+                    <Label text="⚙️ Configurare Misiune" styleClass="h2"/>
                     
+                    <!-- Tip Misiune -->
                     <VBox spacing="5">
-                        <Label text="Tip Misiune:" style="-fx-font-weight:bold;"/>
-                        <ComboBox fx:id="missionTypeCombo" prefWidth="250"/>
+                        <Label text="Tip Misiune:" style="-fx-font-weight:bold; -fx-font-size:11;"/>
+                        <ComboBox fx:id="missionTypeCombo" prefWidth="250" 
+                                  style="-fx-font-size:12;"/>
                     </VBox>
 
+                    <!-- Greutate (doar pentru Livrare) -->
                     <VBox fx:id="weightContainer" spacing="5">
-                        <Label text="Greutate Colet (kg):" style="-fx-font-weight:bold;"/>
-                        <TextField fx:id="weightField" text="1.5"/>
+                        <Label text="Greutate Colet (kg):" style="-fx-font-weight:bold; -fx-font-size:11;"/>
+                        <TextField fx:id="weightField" text="1.5" 
+                                   promptText="ex: 2.5"
+                                   style="-fx-font-size:12;"/>
                     </VBox>
 
                     <Separator/>
-                    <TableView fx:id="destTable" VBox.vgrow="ALWAYS">
-                        <columns>
-                            <TableColumn fx:id="colName" text="Nume" prefWidth="90"/>
-                            <TableColumn fx:id="colAddress" text="Adresă" prefWidth="180"/>
-                        </columns>
-                        <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/></columnResizePolicy>
-                    </TableView>
+
+                    <!-- Tabel Locații Rapide -->
+                    <VBox spacing="8" VBox.vgrow="ALWAYS">
+                        <Label text="📍 Locații Disponibile" styleClass="h2" style="-fx-font-size:14;"/>
+                        <Label text="Dublu-click pentru zoom" 
+                               style="-fx-font-size:10; -fx-text-fill:#95a5a6; -fx-font-style:italic;"/>
+                        
+                        <TableView fx:id="destTable" VBox.vgrow="ALWAYS" 
+                                   style="-fx-font-size:11;">
+                            <columns>
+                                <TableColumn fx:id="colName" text="Nume" prefWidth="120"/>
+                                <TableColumn fx:id="colAddress" text="Tip" prefWidth="130"/>
+                            </columns>
+                            <columnResizePolicy>
+                                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                            </columnResizePolicy>
+                        </TableView>
+                    </VBox>
+
+                    <!-- Instructiuni -->
+                    <VBox spacing="3" 
+                          style="-fx-background-color: #fff3cd; -fx-padding: 10; -fx-background-radius: 5; -fx-border-color: #ffc107; -fx-border-radius: 5;">
+                        <Label text="💡 Cum funcționează:" 
+                               style="-fx-font-weight:bold; -fx-font-size:10;"/>
+                        <Label text="1. Click pe hartă = Punct START (verde)" 
+                               style="-fx-font-size:9; -fx-text-fill:#856404;" wrapText="true"/>
+                        <Label text="2. Click 2 = Punct DESTINAȚIE (roșu)" 
+                               style="-fx-font-size:9; -fx-text-fill:#856404;" wrapText="true"/>
+                        <Label text="3. Sistemul calculează automat" 
+                               style="-fx-font-size:9; -fx-text-fill:#856404;" wrapText="true"/>
+                    </VBox>
                 </VBox>
 
+                <!-- HARTA INTERACTIVĂ -->
                 <StackPane styleClass="card" style="-fx-padding: 5;">
                     <WebView fx:id="webView"/>
                 </StackPane>
@@ -58,29 +99,47 @@
         </SplitPane>
     </center>
 
+    <!-- BOTTOM BAR - REZULTATE & CONFIRMARE -->
     <bottom>
-        <HBox spacing="20" styleClass="sidebar" alignment="CENTER_RIGHT">
-            <padding><Insets top="15" right="30" bottom="15" left="30"/></padding>
+        <HBox spacing="25" styleClass="sidebar" alignment="CENTER_RIGHT">
+            <padding><Insets top="18" right="30" bottom="18" left="30"/></padding>
             
-            <VBox fx:id="resultCard" visible="false" spacing="2" alignment="CENTER_LEFT" style="-fx-padding: 0 20 0 0;">
-                <Label text="Dronă Alocată:" style="-fx-text-fill:white; -fx-font-size:10;"/>
-                <Label fx:id="droneLabel" text="-" style="-fx-text-fill:#2ecc71; -fx-font-weight:bold;"/>
+            <!-- Card Dronă Alocată -->
+            <VBox fx:id="resultCard" visible="false" spacing="3" alignment="CENTER_LEFT" 
+                  style="-fx-padding: 0 25 0 0;">
+                <Label text="🚁 DRONĂ ALOCATĂ" 
+                       style="-fx-text-fill:#bdc3c7; -fx-font-size:9; -fx-font-weight:bold;"/>
+                <Label fx:id="droneLabel" text="-" 
+                       style="-fx-text-fill:#2ecc71; -fx-font-weight:bold; -fx-font-size:13;"/>
             </VBox>
 
-            <VBox alignment="CENTER_LEFT">
-                <Label fx:id="resultTitleLabel" text="Distanță" textFill="#bdc3c7" style="-fx-font-size:10;"/>
-                <Label fx:id="distanceLabel" text="0.0 km" textFill="white" style="-fx-font-size:16; -fx-font-weight:bold;"/>
+            <!-- Distanță -->
+            <VBox alignment="CENTER_LEFT" spacing="2">
+                <Label text="DISTANȚĂ" 
+                       style="-fx-text-fill:#bdc3c7; -fx-font-size:9; -fx-font-weight:bold;"/>
+                <Label fx:id="distanceLabel" text="0.0 km" 
+                       style="-fx-text-fill:white; -fx-font-size:18; -fx-font-weight:bold;"/>
             </VBox>
             
-            <Separator orientation="VERTICAL"/>
+            <Separator orientation="VERTICAL" style="-fx-background-color:#7f8c8d;"/>
             
-            <VBox alignment="CENTER_LEFT">
-                <Label text="Cost Total" textFill="#bdc3c7" style="-fx-font-size:10;"/>
-                <Label fx:id="costLabel" text="0.00 RON" textFill="#f1c40f" style="-fx-font-size:20; -fx-font-weight:bold;"/>
+            <!-- Cost Estimat -->
+            <VBox alignment="CENTER_LEFT" spacing="2">
+                <Label text="COST ESTIMAT" 
+                       style="-fx-text-fill:#bdc3c7; -fx-font-size:9; -fx-font-weight:bold;"/>
+                <Label fx:id="costLabel" text="0.00 RON" 
+                       style="-fx-text-fill:#f1c40f; -fx-font-size:22; -fx-font-weight:bold;"/>
             </VBox>
             
             <Region prefWidth="30"/>
-            <Button fx:id="confirmButton" text="TRIMITE DRONA" styleClass="button-success" disable="true"/>
+            
+            <!-- Buton Confirmare -->
+            <Button fx:id="confirmButton" 
+                    text="✈️ TRIMITE DRONA" 
+                    onAction="#confirmMission"
+                    styleClass="button-success" 
+                    disable="true"
+                    style="-fx-font-size:14; -fx-padding: 15 30; -fx-font-weight:bold;"/>
         </HBox>
     </bottom>
 </BorderPane>

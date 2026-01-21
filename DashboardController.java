@@ -1,5 +1,8 @@
 package dronefleet;
 
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -10,98 +13,110 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
-
-import java.sql.Timestamp;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
+import javafx.util.Duration;
 
 public class DashboardController {
 
+    // --- STATISTICI ---
+    @FXML private Label totalDronesLabel;
+    @FXML private Label activeDronesLabel;
+    @FXML private Label maintenanceLabel;
+
     // --- TABEL DRONE ---
-    @FXML private TableView<Drone> dronesTable;
+    @FXML private TableView<Drone> droneTable;
+    @FXML private TableColumn<Drone, Integer> colId;
     @FXML private TableColumn<Drone, String> colModel;
-    @FXML private TableColumn<Drone, String> colType;
     @FXML private TableColumn<Drone, String> colStatus;
-    @FXML private TableColumn<Drone, Double> colBattery; 
-
-    // --- TABEL ZBORURI ---
-    @FXML private TableView<Flight> flightsTable;
-    @FXML private TableColumn<Flight, String> colFlightDrone;
-    @FXML private TableColumn<Flight, String> colOrigin;
-    @FXML private TableColumn<Flight, String> colDest;
-    @FXML private TableColumn<Flight, String> colTime;
-
-    // --- FORMULAR PROGRAMARE ZBOR ---
-    @FXML private ComboBox<Drone> cmbDrone;
-    @FXML private ComboBox<Destination> cmbSource;
-    @FXML private ComboBox<Destination> cmbDestination;
-    @FXML private DatePicker dpDate;
-    @FXML private TextField txtTime; // Format HH:mm
-    
-    // --- FORMULAR ADAUGARE DRONA ---
-    @FXML private TextField txtNewModel;
-    @FXML private ComboBox<String> cmbNewType; 
-    @FXML private TextField txtNewPayload;
-    @FXML private TextField txtNewAutonomy;
+    @FXML private TableColumn<Drone, String> colPayload; // Schimbat la String pentru formatare
+    @FXML private TableColumn<Drone, String> colMissionType; // Coloană nouă
+    @FXML private TableColumn<Drone, String> colTime; // Timp rămas
 
     @FXML private Label statusLabel;
 
-    // Liste pentru date
     private ObservableList<Drone> droneList = FXCollections.observableArrayList();
-    private ObservableList<Flight> flightList = FXCollections.observableArrayList();
-    private ObservableList<Destination> locationList = FXCollections.observableArrayList();
+    private Timeline refreshTimeline;
 
     @FXML
     public void initialize() {
         setupDroneTable();
-        setupFlightTable();
-        
-        // Configurare ComboBox Tip Drona
-        if (cmbNewType != null) {
-            cmbNewType.setItems(FXCollections.observableArrayList("transport", "survey"));
-        }
-        
         loadDataFromDB();
+        updateStatistics();
+        
+        // Auto-refresh la fiecare secundă pentru countdown
+        refreshTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
+            droneTable.refresh(); // Refresh pentru a actualiza timpul rămas
+            updateStatistics();
+        }));
+        refreshTimeline.setCycleCount(Animation.INDEFINITE);
+        refreshTimeline.play();
     }
 
     private void setupDroneTable() {
+        if (colId != null) {
+            colId.setCellValueFactory(cell -> new SimpleObjectProperty<>(cell.getValue().getId()));
+        }
+        
         colModel.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getModel()));
-        colType.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getType()));
-        colStatus.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getStatus()));
-        colBattery.setCellValueFactory(cell -> new SimpleObjectProperty<>(cell.getValue().getAutonomy()));
+        
+        colStatus.setCellValueFactory(cell -> new SimpleStringProperty(
+            capitalizeFirst(cell.getValue().getStatus())
+        ));
+        
+        // Capacitate cu 1 zecimală
+        colPayload.setCellValueFactory(cell -> new SimpleStringProperty(
+            String.format("%.1f kg", cell.getValue().getMaxPayload())
+        ));
+        
+        // Tip misiune alocată
+        if (colMissionType != null) {
+            colMissionType.setCellValueFactory(cell -> new SimpleStringProperty(
+                cell.getValue().getMissionType()
+            ));
+        }
+        
+        // Timp rămas
+        if (colTime != null) {
+            colTime.setCellValueFactory(cell -> new SimpleStringProperty(
+                cell.getValue().getTimeRemaining()
+            ));
+            
+            // Stilizare celulă pentru timp rămas
+            colTime.setCellFactory(column -> new TableCell<Drone, String>() {
+                @Override
+                protected void updateItem(String item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null || "-".equals(item)) {
+                        setText("-");
+                        setStyle("");
+                    } else {
+                        setText(item);
+                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                    }
+                }
+            });
+        }
 
-        dronesTable.setItems(droneList);
-    }
-
-    private void setupFlightTable() {
-        colFlightDrone.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getDrone().getModel()));
-        colOrigin.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getOrigin()));
-        colDest.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getDestination()));
-        colTime.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getTime()));
-
-        flightsTable.setItems(flightList);
-
-        // Colorare randuri (Zboruri Trecute = Rosu)
-        flightsTable.setRowFactory(tv -> new TableRow<Flight>() {
+        droneTable.setItems(droneList);
+        
+        // Colorare rânduri în funcție de status
+        droneTable.setRowFactory(tv -> new TableRow<Drone>() {
             @Override
-            protected void updateItem(Flight item, boolean empty) {
+            protected void updateItem(Drone item, boolean empty) {
                 super.updateItem(item, empty);
                 if (item == null || empty) {
                     setStyle("");
                 } else {
-                    try {
-                        Timestamp flightTime = Timestamp.valueOf(item.getTime());
-                        Timestamp now = new Timestamp(System.currentTimeMillis());
-                        if (flightTime.before(now)) {
-                            setStyle("-fx-background-color: #ffcccc;");
-                        } else {
-                            setStyle("");
-                        }
-                    } catch (Exception e) {
-                        setStyle(""); 
+                    String status = item.getStatus();
+                    if ("activa".equals(status)) {
+                        setStyle("-fx-background-color: #d4edda;");
+                    } else if ("mentenanta".equals(status)) {
+                        setStyle("-fx-background-color: #fff3cd;");
+                    } else if ("inactiva".equals(status)) {
+                        setStyle("-fx-background-color: #f8d7da;");
+                    } else if ("in_livrare".equals(status)) {
+                        setStyle("-fx-background-color: #d1ecf1;"); // Albastru deschis
+                    } else {
+                        setStyle("");
                     }
                 }
             }
@@ -110,155 +125,181 @@ public class DashboardController {
 
     private void loadDataFromDB() {
         DatabaseManager db = DatabaseManager.getInstance();
-
         droneList.setAll(db.getDrones());
-        
-        List<Destination> locs = db.getLocations();
-        locationList.setAll(locs);
-        
-        if (cmbSource != null) cmbSource.setItems(locationList);
-        if (cmbDestination != null) cmbDestination.setItems(locationList);
-        if (cmbDrone != null) cmbDrone.setItems(droneList); 
+    }
 
-        flightList.setAll(db.getFlights());
+    private void updateStatistics() {
+        DatabaseManager db = DatabaseManager.getInstance();
+        
+        if (totalDronesLabel != null) {
+            totalDronesLabel.setText(String.valueOf(db.getTotalDrones()));
+        }
+        if (activeDronesLabel != null) {
+            activeDronesLabel.setText(String.valueOf(db.getActiveDrones()));
+        }
+        if (maintenanceLabel != null) {
+            maintenanceLabel.setText(String.valueOf(db.getMaintenanceDrones()));
+        }
     }
 
     @FXML
     private void addDrone() {
         try {
-            String model = txtNewModel.getText();
-            String type = cmbNewType.getValue();
-            String payloadStr = txtNewPayload.getText();
-            String autonomyStr = txtNewAutonomy.getText();
+            Dialog<Drone> dialog = new Dialog<>();
+            dialog.setTitle("Adaugă Dronă Nouă");
+            dialog.setHeaderText("Completează detaliile dronei");
 
-            if (model.isEmpty() || type == null || payloadStr.isEmpty() || autonomyStr.isEmpty()) {
-                statusLabel.setText("Completează detaliile dronei!");
-                statusLabel.setTextFill(Color.RED);
-                return;
-            }
+            ButtonType addButtonType = new ButtonType("Adaugă", ButtonBar.ButtonData.OK_DONE);
+            dialog.getDialogPane().getButtonTypes().addAll(addButtonType, ButtonType.CANCEL);
 
-            double payload = Double.parseDouble(payloadStr);
-            double autonomy = Double.parseDouble(autonomyStr);
+            TextField modelField = new TextField();
+            modelField.setPromptText("Model (ex: DJI Matrice 300)");
+            
+            ComboBox<String> typeCombo = new ComboBox<>();
+            typeCombo.getItems().addAll("transport", "survey");
+            typeCombo.setValue("transport");
+            
+            TextField payloadField = new TextField();
+            payloadField.setPromptText("Capacitate (kg)");
+            
+            TextField autonomyField = new TextField();
+            autonomyField.setPromptText("Autonomie (minute)");
 
-            Drone d = new Drone(0, model, type, "activa", payload, autonomy);
-            
-            DatabaseManager.getInstance().addDrone(d);
-            
-            statusLabel.setText("Dronă adăugată!");
-            statusLabel.setTextFill(Color.GREEN);
-            
-            txtNewModel.clear();
-            txtNewPayload.clear();
-            txtNewAutonomy.clear();
-            
-            loadDataFromDB();
+            javafx.scene.layout.GridPane grid = new javafx.scene.layout.GridPane();
+            grid.setHgap(10);
+            grid.setVgap(10);
+            grid.add(new Label("Model:"), 0, 0);
+            grid.add(modelField, 1, 0);
+            grid.add(new Label("Tip:"), 0, 1);
+            grid.add(typeCombo, 1, 1);
+            grid.add(new Label("Capacitate (kg):"), 0, 2);
+            grid.add(payloadField, 1, 2);
+            grid.add(new Label("Autonomie (min):"), 0, 3);
+            grid.add(autonomyField, 1, 3);
 
-        } catch (NumberFormatException e) {
-            statusLabel.setText("Payload/Autonomie trebuie să fie numere!");
-            statusLabel.setTextFill(Color.RED);
+            dialog.getDialogPane().setContent(grid);
+
+            dialog.setResultConverter(dialogButton -> {
+                if (dialogButton == addButtonType) {
+                    try {
+                        String model = modelField.getText();
+                        String type = typeCombo.getValue();
+                        double payload = Double.parseDouble(payloadField.getText());
+                        double autonomy = Double.parseDouble(autonomyField.getText());
+                        
+                        return new Drone(0, model, type, "activa", payload, autonomy);
+                    } catch (NumberFormatException e) {
+                        showStatus("Valori numerice invalide!", Color.RED);
+                        return null;
+                    }
+                }
+                return null;
+            });
+
+            dialog.showAndWait().ifPresent(drone -> {
+                DatabaseManager.getInstance().addDrone(drone);
+                showStatus("Dronă adăugată: " + drone.getModel(), Color.GREEN);
+                loadDataFromDB();
+                updateStatistics();
+            });
+
         } catch (Exception e) {
             e.printStackTrace();
-            statusLabel.setText("Eroare la adăugare: " + e.getMessage());
+            showStatus("Eroare: " + e.getMessage(), Color.RED);
         }
     }
 
     @FXML
     private void setMaintenance() {
-        Drone selected = dronesTable.getSelectionModel().getSelectedItem();
+        Drone selected = droneTable.getSelectionModel().getSelectedItem();
         
         if (selected == null) {
-            statusLabel.setText("Selectează o dronă din tabel!");
-            statusLabel.setTextFill(Color.RED);
+            showStatus("Selectează o dronă din tabel!", Color.RED);
             return;
         }
         
-        try {
-            DatabaseManager.getInstance().updateDroneStatus(selected.getId(), "mentenanta");
-            statusLabel.setText("Drona este acum în mentenanță.");
-            statusLabel.setTextFill(Color.ORANGE);
-            loadDataFromDB();
-        } catch (Exception e) {
-            e.printStackTrace();
-            statusLabel.setText("Eroare la actualizare status!");
+        if ("mentenanta".equals(selected.getStatus())) {
+            showStatus("Drona este deja în mentenanță!", Color.ORANGE);
+            return;
+        }
+        
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Confirmare Mentenanță");
+        confirm.setHeaderText("Trimite drona în service?");
+        confirm.setContentText(selected.getModel() + " (ID: " + selected.getId() + ")");
+        
+        if (confirm.showAndWait().get() == ButtonType.OK) {
+            try {
+                DatabaseManager.getInstance().updateDroneStatus(selected.getId(), "mentenanta");
+                showStatus("✓ Drona trimisă în mentenanță", Color.GREEN);
+                loadDataFromDB();
+                updateStatistics();
+            } catch (Exception e) {
+                e.printStackTrace();
+                showStatus("Eroare la actualizare!", Color.RED);
+            }
         }
     }
 
-    // --- METODA NOUĂ PENTRU STERGRERE ---
     @FXML
     private void removeDrone() {
-        Drone selected = dronesTable.getSelectionModel().getSelectedItem();
+        Drone selected = droneTable.getSelectionModel().getSelectedItem();
         
         if (selected == null) {
-            statusLabel.setText("Selectează o dronă pentru a o șterge!");
-            statusLabel.setTextFill(Color.RED);
+            showStatus("Selectează o dronă pentru ștergere!", Color.RED);
             return;
         }
 
-        try {
-            // Apelăm metoda de ștergere din DatabaseManager
-            DatabaseManager.getInstance().deleteDrone(selected);
-            
-            statusLabel.setText("Drona a fost ștearsă!");
-            statusLabel.setTextFill(Color.GREEN);
-            
-            // Reîmprospătăm tabelul
-            loadDataFromDB();
-            
-        } catch (Exception e) {
-            e.printStackTrace();
-            statusLabel.setText("Eroare la ștergere (Posibil să aibă zboruri asociate!)");
-            statusLabel.setTextFill(Color.RED);
-        }
-    }
-
-    @FXML
-    private void onScheduleFlight() {
-        try {
-            Drone selectedDrone = cmbDrone.getValue();
-            Destination source = cmbSource.getValue();
-            Destination dest = cmbDestination.getValue();
-            LocalDate date = dpDate.getValue();
-            String timeStr = txtTime.getText(); 
-
-            if (selectedDrone == null || source == null || dest == null || date == null || timeStr.isEmpty()) {
-                statusLabel.setText("Completează datele zborului!");
-                statusLabel.setTextFill(Color.RED);
-                return;
+        Alert confirmDialog = new Alert(Alert.AlertType.WARNING);
+        confirmDialog.setTitle("⚠ ATENȚIE - Ștergere Dronă");
+        confirmDialog.setHeaderText("Ești sigur că vrei să ștergi această dronă?");
+        confirmDialog.setContentText(
+            "Dronă: " + selected.getModel() + " (ID: " + selected.getId() + ")\n" +
+            "⚠ Această acțiune va șterge și toate misiunile asociate!"
+        );
+        
+        if (confirmDialog.showAndWait().get() == ButtonType.OK) {
+            try {
+                DatabaseManager.getInstance().deleteDrone(selected);
+                showStatus("✓ Dronă ștearsă", Color.GREEN);
+                loadDataFromDB();
+                updateStatistics();
+            } catch (Exception e) {
+                e.printStackTrace();
+                showStatus("❌ Eroare: Posibil să aibă misiuni active!", Color.RED);
             }
-
-            LocalTime time = LocalTime.parse(timeStr, DateTimeFormatter.ofPattern("HH:mm"));
-            LocalDateTime flightDateTime = LocalDateTime.of(date, time);
-            Timestamp timestamp = Timestamp.valueOf(flightDateTime);
-
-            Flight newFlight = new Flight(
-                selectedDrone, 
-                source.getCoordinates(), 
-                dest.getCoordinates(),   
-                timestamp.toString()
-            );
-
-            DatabaseManager.getInstance().saveFlight(newFlight);
-
-            statusLabel.setText("Zbor programat!");
-            statusLabel.setTextFill(Color.GREEN);
-            loadDataFromDB(); 
-            DatabaseManager.getInstance().updateDroneStatus(selectedDrone.getId(), "in_livrare");
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            statusLabel.setText("Eroare (Format ora HH:mm): " + e.getMessage());
         }
     }
     
     @FXML
-    private void onRefresh() {
-        loadDataFromDB();
+    private void openMap() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/map.fxml"));
+            Scene scene = new Scene(loader.load());
+            
+            if (getClass().getResource("/style.css") != null) {
+                scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
+            }
+
+            Stage mapStage = new Stage();
+            mapStage.setTitle("📍 Planificare Misiune - Hartă Interactivă");
+            mapStage.setScene(scene);
+            mapStage.show();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            showStatus("❌ Eroare la deschiderea hărții!", Color.RED);
+        }
     }
 
     @FXML
     private void onLogout() {
         try {
-            Stage currentStage = (Stage) dronesTable.getScene().getWindow();
+            if (refreshTimeline != null) {
+                refreshTimeline.stop();
+            }
+            
+            Stage currentStage = (Stage) droneTable.getScene().getWindow();
             currentStage.close();
 
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/login.fxml"));
@@ -275,7 +316,23 @@ public class DashboardController {
 
         } catch (Exception e) {
             e.printStackTrace();
-            statusLabel.setText("Eroare la delogare!");
         }
+    }
+    
+    private void showStatus(String message, Color color) {
+        if (statusLabel != null) {
+            statusLabel.setText(message);
+            statusLabel.setTextFill(color);
+            
+            Timeline clearTimeline = new Timeline(new KeyFrame(Duration.seconds(5), e -> {
+                statusLabel.setText("");
+            }));
+            clearTimeline.play();
+        }
+    }
+    
+    private String capitalizeFirst(String text) {
+        if (text == null || text.isEmpty()) return text;
+        return text.substring(0, 1).toUpperCase() + text.substring(1);
     }
 }

@@ -4,7 +4,6 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-// FIX 1: Numele clasei trebuie sa coincida cu numele fisierului
 public class DatabaseManager {
     private static DatabaseManager instance;
 
@@ -19,25 +18,46 @@ public class DatabaseManager {
 
     public List<Drone> getDrones() {
         List<Drone> list = new ArrayList<>();
-        String sql = "SELECT DroneID, Model, Type, Status, PayloadCapacity, AutonomyMin FROM Drones";
+        String sql = "SELECT d.DroneID, d.Model, d.Type, d.Status, d.PayloadCapacity, d.AutonomyMin, " +
+                     "m.Type as MissionType, m.StartTime, m.DurationMin " +
+                     "FROM Drones d " +
+                     "LEFT JOIN Missions m ON d.DroneID = m.DroneID " +
+                     "AND m.MissionStatus = 'in_desfasurare' " +
+                     "ORDER BY d.DroneID";
         
         try (Connection conn = DatabaseConnection.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
-                // FIX 2: DroneID este int in baza de date si in clasa Drone
                 int id = rs.getInt("DroneID");
                 String model = rs.getString("Model");
                 String type = rs.getString("Type");
-                String dbStatus = rs.getString("Status");
-                double payload = rs.getDouble("PayloadCapacity");
-                
-                // FIX 3: AutonomyMin e int in DB, dar double in constructor
-                double autonomy = rs.getInt("AutonomyMin"); 
+                String status = rs.getString("Status");
+                double payload = rs.getFloat("PayloadCapacity");
+                double autonomy = rs.getInt("AutonomyMin");
 
-                // Apelam constructorul corect (int, String, String, String, double, double)
-                Drone d = new Drone(id, model, type, dbStatus, payload, autonomy);
+                Drone d = new Drone(id, model, type, status, payload, autonomy);
+                
+                // Setează tipul misiunii și timpul rămas dacă există
+                String missionType = rs.getString("MissionType");
+                if (missionType != null && !"activa".equals(status)) {
+                    d.setMissionType(capitalizeFirst(missionType));
+                    
+                    // Calculează timpul de final al misiunii
+                    Timestamp startTime = rs.getTimestamp("StartTime");
+                    int duration = rs.getInt("DurationMin");
+                    if (startTime != null) {
+                        long endTime = startTime.getTime() + (duration * 60000L);
+                        d.setMissionEndTime(endTime);
+                        
+                        // Actualizează statusul dacă drona e în livrare
+                        if ("activa".equals(status)) {
+                            d.setStatus("in_livrare");
+                        }
+                    }
+                }
+                
                 list.add(d);
             }
         } catch (SQLException e) {
@@ -54,9 +74,8 @@ public class DatabaseManager {
             
             pstmt.setString(1, d.getModel());
             pstmt.setString(2, d.getType());
-            String statusToSend = d.getStatus().equals("in_livrare") ? "activa" : d.getStatus();
-            pstmt.setString(3, statusToSend);
-            pstmt.setDouble(4, d.getMaxPayload());
+            pstmt.setString(3, d.getStatus());
+            pstmt.setFloat(4, (float) d.getMaxPayload());
             pstmt.setInt(5, (int) d.getAutonomy());
             pstmt.setDate(6, new java.sql.Date(System.currentTimeMillis()));
             
@@ -70,7 +89,6 @@ public class DatabaseManager {
         String sql = "DELETE FROM Drones WHERE DroneID = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            // FIX 4: d.getId() returneaza deja int, nu folosim Integer.parseInt
             pstmt.setInt(1, d.getId());
             pstmt.executeUpdate();
         } catch (SQLException e) {
@@ -78,30 +96,22 @@ public class DatabaseManager {
         }
     }
 
-    public void updateDroneStatus(String droneId, String newStatus) {
+    public void updateDroneStatus(int droneId, String newStatus) {
         String sql = "UPDATE Drones SET Status = ? WHERE DroneID = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
-            String dbStatus = newStatus.equals("in_livrare") ? "activa" : newStatus;
-            
-            pstmt.setString(1, dbStatus);
-            // FIX 5: droneId vine ca String aici (din apeluri externe), deci il parsam
-            pstmt.setInt(2, Integer.parseInt(droneId));
+            pstmt.setString(1, newStatus);
+            pstmt.setInt(2, droneId);
             pstmt.executeUpdate();
 
             if ("mentenanta".equals(newStatus)) {
-                logMaintenance(Integer.parseInt(droneId));
+                logMaintenance(droneId);
             }
 
         } catch (SQLException e) {
             e.printStackTrace();
         }
-    }
-    
-    // Supraincarcare metoda pentru cand avem ID-ul ca int direct
-    public void updateDroneStatus(int droneId, String newStatus) {
-        updateDroneStatus(String.valueOf(droneId), newStatus);
     }
 
     // --- METODE PENTRU LOCATII ---
@@ -115,10 +125,11 @@ public class DatabaseManager {
 
             while (rs.next()) {
                 String name = rs.getString("LocationName");
-                String type = rs.getString("Type"); 
+                String type = rs.getString("Type");
                 String coords = rs.getString("Coordinates");
                 
-                locations.add(new Destination(name + " (" + type + ")", coords, coords));
+                String displayName = name + " (" + type + ")";
+                locations.add(new Destination(displayName, type, coords));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -126,21 +137,21 @@ public class DatabaseManager {
         return locations;
     }
 
-    // --- METODE PENTRU ZBORURI ---
+    // --- METODE PENTRU MISSIONS (ZBORURI) ---
     public void saveFlight(Flight flight) {
-        String sql = "INSERT INTO Missions (DroneID, StartCoord, EndCoord, StartTime, DurationMin, Type, MissionStatus) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO Missions (DroneID, StartCoord, EndCoord, StartTime, DurationMin, Type, MissionStatus) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, ?)";
         
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
-            // FIX 6: flight.getDrone().getId() este int
             pstmt.setInt(1, flight.getDrone().getId());
             pstmt.setString(2, flight.getOrigin());
             pstmt.setString(3, flight.getDestination());
-            pstmt.setTimestamp(4, new Timestamp(System.currentTimeMillis())); 
-            pstmt.setInt(5, 30);
+            pstmt.setTimestamp(4, Timestamp.valueOf(flight.getTime()));
+            pstmt.setInt(5, 30); // Durata estimată default
             pstmt.setString(6, "livrare");
-            pstmt.setString(7, "planificata");
+            pstmt.setString(7, "in_desfasurare"); // Status pentru misiuni noi
             
             pstmt.executeUpdate();
         } catch (SQLException e) {
@@ -150,8 +161,10 @@ public class DatabaseManager {
 
     public List<Flight> getFlights() {
         List<Flight> flights = new ArrayList<>();
-        String sql = "SELECT m.DroneID, m.StartCoord, m.EndCoord, m.StartTime, d.Model, d.Type, d.Status, d.PayloadCapacity, d.AutonomyMin " +
-                     "FROM Missions m JOIN Drones d ON m.DroneID = d.DroneID " +
+        String sql = "SELECT m.DroneID, m.StartCoord, m.EndCoord, m.StartTime, " +
+                     "d.Model, d.Type, d.Status, d.PayloadCapacity, d.AutonomyMin " +
+                     "FROM Missions m " +
+                     "JOIN Drones d ON m.DroneID = d.DroneID " +
                      "ORDER BY m.StartTime DESC";
         
         try (Connection conn = DatabaseConnection.getConnection();
@@ -159,19 +172,18 @@ public class DatabaseManager {
              ResultSet rs = stmt.executeQuery(sql)) {
 
             while(rs.next()) {
-                // FIX 7: Constructorul Drone cere int la ID
                 Drone drone = new Drone(
                     rs.getInt("DroneID"),
                     rs.getString("Model"),
                     rs.getString("Type"),
                     rs.getString("Status"),
-                    rs.getDouble("PayloadCapacity"),
+                    rs.getFloat("PayloadCapacity"),
                     rs.getInt("AutonomyMin")
                 );
                 
                 String origin = rs.getString("StartCoord");
                 String dest = rs.getString("EndCoord");
-                String time = rs.getString("StartTime"); 
+                String time = rs.getString("StartTime");
                 
                 flights.add(new Flight(drone, origin, dest, time));
             }
@@ -181,18 +193,82 @@ public class DatabaseManager {
         return flights;
     }
     
+    // --- ÎNREGISTRARE MENTENANȚĂ ---
     private void logMaintenance(int droneId) {
-        String sql = "INSERT INTO Maintenance (DroneID, DatePerformed, Type, RepairType, StatusTichet) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO Maintenance (DroneID, DatePerformed, Type, RepairType, StatusTichet) " +
+                     "VALUES (?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, droneId);
             pstmt.setDate(2, new java.sql.Date(System.currentTimeMillis()));
-            pstmt.setString(3, "Routine Check");
-            pstmt.setString(4, "General Inspection");
+            pstmt.setString(3, "Mentenanță preventivă");
+            pstmt.setString(4, "Inspecție generală");
             pstmt.setString(5, "deschis");
             pstmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+    
+    // --- METODE PENTRU STATISTICI DASHBOARD ---
+    public int getTotalDrones() {
+        String sql = "SELECT COUNT(*) as total FROM Drones";
+        try (Connection conn = DatabaseConnection.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) return rs.getInt("total");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+    
+    public int getActiveDrones() {
+        String sql = "SELECT COUNT(*) as total FROM Drones WHERE Status = 'activa'";
+        try (Connection conn = DatabaseConnection.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) return rs.getInt("total");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+    
+    public int getMaintenanceDrones() {
+        String sql = "SELECT COUNT(*) as total FROM Drones WHERE Status = 'mentenanta'";
+        try (Connection conn = DatabaseConnection.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) return rs.getInt("total");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+    
+    // --- METODE PENTRU USERS (Autentificare) ---
+    public boolean validateUser(String username, String passwordHash) {
+        String sql = "SELECT UserID FROM Users WHERE Username = ? AND PasswordHash = ?";
+        
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, username);
+            pstmt.setString(2, passwordHash);
+            
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+    
+    // --- UTILITAR ---
+    private String capitalizeFirst(String text) {
+        if (text == null || text.isEmpty()) return text;
+        return text.substring(0, 1).toUpperCase() + text.substring(1);
     }
 }

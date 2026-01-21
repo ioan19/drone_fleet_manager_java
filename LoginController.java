@@ -8,9 +8,6 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -22,51 +19,38 @@ public class LoginController {
 
     @FXML
     private void onLogin() {
-        String user = usernameField.getText();
+        String user = usernameField.getText().trim();
         String pass = passwordField.getText();
 
         if (user.isEmpty() || pass.isEmpty()) {
-            statusLabel.setText("Introduceți user și parolă!");
+            statusLabel.setText("⚠ Completează toate câmpurile!");
             return;
         }
 
-        if (validateLogin(user, pass)) {
+        // Hash-uim parola introdusă
+        String hashedPassword = hashPassword(pass);
+        
+        if (hashedPassword == null) {
+            statusLabel.setText("❌ Eroare la procesare parolă!");
+            return;
+        }
+
+        // Validăm cu baza de date
+        if (DatabaseManager.getInstance().validateUser(user, hashedPassword)) {
             openDashboard();
         } else {
-            statusLabel.setText("Utilizator sau parolă incorectă!");
+            statusLabel.setText("❌ Utilizator sau parolă incorectă!");
         }
     }
 
-    private boolean validateLogin(String username, String password) {
-        String sql = "SELECT UserID FROM Users WHERE Username = ? AND PasswordHash = ?";
-        
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
-            // 1. Setăm username-ul
-            pstmt.setString(1, username);
-            
-            // 2. Criptăm parola primită din interfață pentru a o compara cu cea din DB
-            String encryptedPass = hashPassword(password);
-            pstmt.setString(2, encryptedPass); 
-            
-            try (ResultSet rs = pstmt.executeQuery()) {
-                return rs.next(); // Dacă găsim un rând, login-ul e corect
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            statusLabel.setText("Eroare conexiune DB!");
-            return false;
-        }
-    }
-
-    // --- METODA NOUĂ DE CRIPTARE ---
+    /**
+     * Hash-uire SHA-256 pentru parole
+     */
     private String hashPassword(String password) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] hashedBytes = md.digest(password.getBytes());
             
-            // Convertim din bytes în format Hexazecimal (text lizibil)
             StringBuilder sb = new StringBuilder();
             for (byte b : hashedBytes) {
                 sb.append(String.format("%02x", b));
@@ -81,15 +65,12 @@ public class LoginController {
 
     private void openDashboard() {
         try {
-            // Închide fereastra de login
             Stage currentStage = (Stage) usernameField.getScene().getWindow();
             currentStage.close();
 
-            // Deschide Dashboard
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/dashboard.fxml"));
             Scene scene = new Scene(loader.load());
             
-            // Adaugă CSS dacă există
             if (getClass().getResource("/style.css") != null) {
                 scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
             }
@@ -97,11 +78,12 @@ public class LoginController {
             Stage stage = new Stage();
             stage.setTitle("Drone Fleet Manager - Dashboard");
             stage.setScene(scene);
+            stage.setMaximized(true); // Deschide maximizat
             stage.show();
             
         } catch (Exception e) {
             e.printStackTrace();
-            statusLabel.setText("Eroare la deschiderea Dashboard!");
+            statusLabel.setText("❌ Eroare la deschidere Dashboard!");
         }
     }
 }

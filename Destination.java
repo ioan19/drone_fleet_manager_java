@@ -1,9 +1,9 @@
 package dronefleet;
 
 public class Destination {
-    private String name;
-    private String address;
-    private String coordinates; // Câmp nou pentru coloana Coordinates din DB
+    private String name;        // Numele complet pentru afișare
+    private String address;     // Tipul locației (baza, destinatie, etc.)
+    private String coordinates; // Format: "lat,lng"
     
     public Destination(String name, String address, String coordinates) {
         this.name = name;
@@ -11,12 +11,20 @@ public class Destination {
         this.coordinates = coordinates;
     }
 
-    public String getName() { return name; }
-    public String getAddress() { return address; }
-    public String getCoordinates() { return coordinates; }
+    public String getName() { 
+        return name; 
+    }
+    
+    public String getAddress() { 
+        return address; 
+    }
+    
+    public String getCoordinates() { 
+        return coordinates; 
+    }
     
     @Override
     public String toString() {
-        return name; // Pentru a afișa corect în ComboBox
+        return name; // Pentru ComboBox
     }
 }
