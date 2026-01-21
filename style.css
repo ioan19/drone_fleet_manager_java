@@ -1,0 +1,203 @@
+/* style.css - Premium Enterprise Theme (Final Version) */
+
+/* --- Setări Globale --- */
+.root {
+    -fx-font-family: "Segoe UI", "Roboto", Helvetica, Arial, sans-serif;
+    -fx-background-color: #f4f7f6; /* Gri foarte deschis, odihnitor pentru ochi */
+}
+
+/* --- Tipografie (Headere) --- */
+.h1 {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2c3e50; /* Navy Blue */
+}
+
+.h2 {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #34495e;
+}
+
+.label-dim {
+    -fx-text-fill: #7f8c8d; /* Gri pentru subtitlu */
+}
+
+/* --- Containere & Carduri --- */
+.card {
+    -fx-background-color: white;
+    -fx-background-radius: 8;
+    /* Umbra subtilă pentru efect 3D */
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 2);
+    -fx-padding: 20;
+}
+
+.sidebar {
+    -fx-background-color: #2c3e50; /* Bara de jos întunecată */
+}
+
+/* --- Butoane --- */
+.button {
+    -fx-background-color: #ecf0f1;
+    -fx-text-fill: #2c3e50;
+    -fx-font-weight: bold;
+    -fx-background-radius: 5;
+    -fx-cursor: hand;
+    -fx-padding: 8 15;
+    -fx-effect: null; /* Scoatem efectele default vechi */
+}
+
+.button:hover {
+    -fx-background-color: #bdc3c7;
+}
+
+/* Buton Albastru (Login, Principal) */
+.button-primary {
+    -fx-background-color: #3498db;
+    -fx-text-fill: white;
+}
+.button-primary:hover {
+    -fx-background-color: #2980b9;
+}
+
+/* Buton Verde (Confirmare) */
+.button-success {
+    -fx-background-color: #27ae60;
+    -fx-text-fill: white;
+}
+.button-success:hover {
+    -fx-background-color: #219150;
+}
+
+/* Buton Roșu (Ștergere, Eroare) */
+.button-danger {
+    -fx-background-color: #e74c3c;
+    -fx-text-fill: white;
+}
+.button-danger:hover {
+    -fx-background-color: #c0392b;
+}
+
+/* --- Input Fields (Text) --- */
+.text-field, .password-field {
+    -fx-background-color: white;
+    -fx-border-color: #bdc3c7;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-padding: 8;
+}
+
+.text-field:focused, .password-field:focused {
+    -fx-border-color: #3498db; /* Albastru când scrii */
+}
+
+/* --- TABLE VIEW (Partea Critică) --- */
+.table-view {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+/* Header-ul Tabelului */
+.table-view .column-header-background {
+    -fx-background-color: transparent;
+}
+
+.table-view .column-header {
+    -fx-background-color: transparent;
+    -fx-border-bottom-color: #bdc3c7;
+    -fx-border-bottom-width: 2px;
+    -fx-padding: 10 5;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: #2c3e50;
+    -fx-font-weight: bold;
+}
+
+/* Celulele normale */
+.table-view .table-cell {
+    -fx-padding: 10;
+    -fx-alignment: CENTER-LEFT;
+    -fx-text-fill: #2c3e50;
+    -fx-border-color: transparent;
+}
+
+/* Culori alternative pentru rânduri (Zebra striping) */
+.table-row-cell:odd {
+    -fx-background-color: #fdfdfd;
+}
+.table-row-cell:even {
+    -fx-background-color: white;
+}
+
+/* --- FIX PENTRU SELECȚIE (Problema textului invizibil) --- */
+
+/* 1. Setăm fundalul rândului selectat la un turcoaz deschis */
+.table-row-cell:selected {
+    -fx-background-color: #d1f2eb; 
+    -fx-background-insets: 0;
+}
+
+/* 2. FORȚĂM textul să fie închis la culoare (Navy) când e selectat */
+.table-row-cell:selected .text {
+    -fx-fill: #2c3e50; 
+}
+
+/* 3. Caz special pentru celule goale selectate (ca să nu arate urât) */
+.table-row-cell:empty {
+    -fx-background-color: transparent;
+}
+
+/* --- Scrollbar Modern --- */
+.scroll-bar:vertical .thumb, .scroll-bar:horizontal .thumb {
+    -fx-background-color: #bdc3c7;
+    -fx-background-radius: 5;
+}
+.scroll-bar:vertical:hover .thumb {
+    -fx-background-color: #95a5a6;
+}
+/* style.css - Premium Enterprise Theme */
+.root {
+    -fx-font-family: "Segoe UI", "Roboto", Helvetica, Arial, sans-serif;
+    -fx-background-color: #f4f7f6; 
+}
+.h1 { -fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50; }
+.h2 { -fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #34495e; }
+.label-dim { -fx-text-fill: #7f8c8d; }
+
+.card {
+    -fx-background-color: white;
+    -fx-background-radius: 8;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 2);
+    -fx-padding: 20;
+}
+.sidebar { -fx-background-color: #2c3e50; }
+
+.button {
+    -fx-background-color: #ecf0f1;
+    -fx-text-fill: #2c3e50;
+    -fx-font-weight: bold;
+    -fx-background-radius: 5;
+    -fx-cursor: hand;
+    -fx-padding: 8 15;
+}
+.button:hover { -fx-background-color: #bdc3c7; }
+.button-primary { -fx-background-color: #3498db; -fx-text-fill: white; }
+.button-success { -fx-background-color: #27ae60; -fx-text-fill: white; }
+.button-danger { -fx-background-color: #e74c3c; -fx-text-fill: white; }
+
+/* TABLE VIEW FIX - Esential pentru vizibilitate */
+.table-view { -fx-background-color: transparent; -fx-border-color: transparent; }
+.table-view .column-header { -fx-background-color: transparent; -fx-border-bottom-color: #bdc3c7; -fx-border-bottom-width: 2px; }
+.table-view .table-cell { -fx-text-fill: #2c3e50; -fx-alignment: CENTER-LEFT; }
+.table-row-cell:odd { -fx-background-color: #fdfdfd; }
+.table-row-cell:even { -fx-background-color: white; }
+
+/* Cand selectezi un rand: */
+.table-row-cell:selected {
+    -fx-background-color: #d1f2eb; /* Verde deschis */
+    -fx-background-insets: 0;
+}
+.table-row-cell:selected .text {
+    -fx-fill: #2c3e50; /* Text inchis la culoare - FOARTE IMPORTANT */
+}

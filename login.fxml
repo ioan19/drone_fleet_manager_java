@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.*?>
+
+<StackPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+           fx:controller="dronefleet.LoginController"
+           stylesheets="@style.css"
+           style="-fx-background-color: linear-gradient(to bottom right, #2c3e50, #3498db);">
+
+    <VBox alignment="CENTER" spacing="20" maxWidth="400" maxHeight="450" styleClass="card">
+        <padding><Insets top="40" right="40" bottom="40" left="40"/></padding>
+        
+        <StackPane>
+            <Circle radius="30" fill="#3498db"/>
+            <Label text="DFM" textFill="white" style="-fx-font-weight:bold;"/>
+        </StackPane>
+        
+        <Label text="Bine ai venit!" styleClass="h1"/>
+        <Label text="Drone Fleet Manager Enterprise" styleClass="label-dim"/>
+        
+        <Region prefHeight="10"/>
+        
+        <VBox spacing="5" alignment="CENTER_LEFT">
+            <Label text="USERNAME" style="-fx-font-size:10; -fx-font-weight:bold; -fx-text-fill:#95a5a6;"/>
+            <TextField fx:id="usernameField" promptText="admin" style="-fx-padding: 10;"/>
+        </VBox>
+        
+        <VBox spacing="5" alignment="CENTER_LEFT">
+            <Label text="PASSWORD" style="-fx-font-size:10; -fx-font-weight:bold; -fx-text-fill:#95a5a6;"/>
+            <PasswordField fx:id="passwordField" promptText="••••••" style="-fx-padding: 10;"/>
+        </VBox>
+        
+        <Region prefHeight="10"/>
+        
+        <Button text="Autentificare Securizată" onAction="#onLogin" 
+                styleClass="button-primary" maxWidth="Infinity" style="-fx-padding: 12;"/>
+                
+        <Label fx:id="statusLabel" textFill="#e74c3c"/>
+    </VBox>
+</StackPane>

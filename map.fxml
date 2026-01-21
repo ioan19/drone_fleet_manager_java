@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.web.WebView?>
+
+<BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="dronefleet.MapController" prefWidth="1100" prefHeight="750"
+            stylesheets="@style.css">
+
+    <top>
+        <HBox spacing="20" styleClass="card" alignment="CENTER_LEFT">
+            <padding><Insets top="15" right="20" bottom="15" left="20"/></padding>
+            <VBox>
+                <Label text="Mission Control Center" styleClass="h1"/>
+                <Label fx:id="statusLabel" text="Selectează o destinație..." styleClass="label-dim"/>
+            </VBox>
+            <Pane HBox.hgrow="ALWAYS"/>
+            
+            <VBox spacing="2" style="-fx-background-color: #f4f7f6; -fx-padding: 8; -fx-background-radius: 5; -fx-border-color: #bdc3c7; -fx-border-radius: 5;">
+                <Label text="Condiții Meteo" style="-fx-font-size:10; -fx-font-weight:bold;"/>
+                <Label fx:id="weatherLabel" text="-- °C" style="-fx-font-weight:bold;"/>
+                <Label fx:id="windLabel" text="Vânt: -- km/h" style="-fx-font-size:10;"/>
+            </VBox>
+        </HBox>
+    </top>
+
+    <center>
+        <SplitPane dividerPositions="0.3" style="-fx-background-color:transparent; -fx-padding: 10;">
+            <items>
+                <VBox spacing="15" styleClass="card">
+                    <Label text="Configurare" styleClass="h2"/>
+                    
+                    <VBox spacing="5">
+                        <Label text="Tip Misiune:" style="-fx-font-weight:bold;"/>
+                        <ComboBox fx:id="missionTypeCombo" prefWidth="250"/>
+                    </VBox>
+
+                    <VBox fx:id="weightContainer" spacing="5">
+                        <Label text="Greutate Colet (kg):" style="-fx-font-weight:bold;"/>
+                        <TextField fx:id="weightField" text="1.5"/>
+                    </VBox>
+
+                    <Separator/>
+                    <TableView fx:id="destTable" VBox.vgrow="ALWAYS">
+                        <columns>
+                            <TableColumn fx:id="colName" text="Nume" prefWidth="90"/>
+                            <TableColumn fx:id="colAddress" text="Adresă" prefWidth="180"/>
+                        </columns>
+                        <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/></columnResizePolicy>
+                    </TableView>
+                </VBox>
+
+                <StackPane styleClass="card" style="-fx-padding: 5;">
+                    <WebView fx:id="webView"/>
+                </StackPane>
+            </items>
+        </SplitPane>
+    </center>
+
+    <bottom>
+        <HBox spacing="20" styleClass="sidebar" alignment="CENTER_RIGHT">
+            <padding><Insets top="15" right="30" bottom="15" left="30"/></padding>
+            
+            <VBox fx:id="resultCard" visible="false" spacing="2" alignment="CENTER_LEFT" style="-fx-padding: 0 20 0 0;">
+                <Label text="Dronă Alocată:" style="-fx-text-fill:white; -fx-font-size:10;"/>
+                <Label fx:id="droneLabel" text="-" style="-fx-text-fill:#2ecc71; -fx-font-weight:bold;"/>
+            </VBox>
+
+            <VBox alignment="CENTER_LEFT">
+                <Label fx:id="resultTitleLabel" text="Distanță" textFill="#bdc3c7" style="-fx-font-size:10;"/>
+                <Label fx:id="distanceLabel" text="0.0 km" textFill="white" style="-fx-font-size:16; -fx-font-weight:bold;"/>
+            </VBox>
+            
+            <Separator orientation="VERTICAL"/>
+            
+            <VBox alignment="CENTER_LEFT">
+                <Label text="Cost Total" textFill="#bdc3c7" style="-fx-font-size:10;"/>
+                <Label fx:id="costLabel" text="0.00 RON" textFill="#f1c40f" style="-fx-font-size:20; -fx-font-weight:bold;"/>
+            </VBox>
+            
+            <Region prefWidth="30"/>
+            <Button fx:id="confirmButton" text="TRIMITE DRONA" styleClass="button-success" disable="true"/>
+        </HBox>
+    </bottom>
+</BorderPane>
