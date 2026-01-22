@@ -57,6 +57,16 @@
                                    style="-fx-font-size:12;"/>
                     </VBox>
 
+                    <!-- NOU: Note pentru cerere (doar pentru Operator) -->
+                    <VBox fx:id="notesContainer" spacing="5" visible="false" managed="false">
+                        <Label text="Note / Instrucțiuni speciale:" style="-fx-font-weight:bold; -fx-font-size:11;"/>
+                        <TextArea fx:id="notesField" 
+                                  promptText="Ex: Livrare urgentă, sună la sosire, etc."
+                                  prefRowCount="3"
+                                  wrapText="true"
+                                  style="-fx-font-size:11;"/>
+                    </VBox>
+
                     <Separator/>
 
                     <!-- Instructiuni -->
@@ -86,7 +96,7 @@
         <HBox spacing="25" styleClass="sidebar" alignment="CENTER_RIGHT">
             <padding><Insets top="18" right="30" bottom="18" left="30"/></padding>
             
-            <!-- Card Dronă Alocată -->
+            <!-- Card Dronă Alocată (ascuns pentru operator) -->
             <VBox fx:id="resultCard" visible="false" spacing="3" alignment="CENTER_LEFT" 
                   style="-fx-padding: 0 25 0 0;">
                 <Label text="🚁 DRONĂ ALOCATĂ" 
@@ -115,7 +125,7 @@
             
             <Region prefWidth="30"/>
             
-            <!-- Buton Confirmare -->
+            <!-- Buton Confirmare (textul se schimbă pentru operator) -->
             <Button fx:id="confirmButton" 
                     text="✈️ TRIMITE DRONA" 
                     onAction="#confirmMission"
