@@ -7,8 +7,9 @@ public class Drone {
     private String status;
     private double maxPayload;
     private double autonomy;
-    private String missionType; // Tipul misiunii alocate
-    private long missionEndTime; // Timestamp când se termină misiunea
+    private String missionType;
+    private long missionEndTime;
+    private long maintenanceEndTime;
 
     public Drone(int id, String model, String type, String status, double maxPayload, double autonomy) {
         this.id = id;
@@ -19,6 +20,7 @@ public class Drone {
         this.autonomy = autonomy;
         this.missionType = "-";
         this.missionEndTime = 0;
+        this.maintenanceEndTime = 0;
     }
 
     public int getId() { return id; }
@@ -32,13 +34,9 @@ public class Drone {
     public void setStatus(String status) { this.status = status; }
     public void setMissionType(String missionType) { this.missionType = missionType; }
     public void setMissionEndTime(long endTime) { this.missionEndTime = endTime; }
+    public void setMaintenanceEndTime(long endTime) { this.maintenanceEndTime = endTime; }
     
-    /**
-     * Returnează timpul rămas pentru misiunea activă
-     * Format: "MM:SS" sau "-" dacă nu e în misiune
-     */
     public String getTimeRemaining() {
-        // Verifică automat dacă misiunea s-a terminat
         checkAndUpdateStatus();
         
         if (!"in_livrare".equals(status) || missionEndTime == 0) {
@@ -58,18 +56,54 @@ public class Drone {
         return String.format("%02d:%02d", minutes, seconds);
     }
     
-    /**
-     * Verifică dacă misiunea s-a terminat și actualizează statusul
-     */
-    private void checkAndUpdateStatus() {
+    public String getTimeRemainingDisplay() {
+        checkAndUpdateStatus();
+        
+        if ("mentenanta".equals(status) && maintenanceEndTime > 0) {
+            long now = System.currentTimeMillis();
+            long diff = maintenanceEndTime - now;
+            
+            if (diff <= 0) {
+                return "Finalizare...";
+            }
+            
+            long minutes = diff / 60000;
+            long seconds = (diff % 60000) / 1000;
+            
+            return String.format("%02d:%02d", minutes, seconds);
+        }
+        
         if ("in_livrare".equals(status) && missionEndTime > 0) {
             long now = System.currentTimeMillis();
-            if (now >= missionEndTime) {
-                status = "activa";
-                missionType = "-";
-                missionEndTime = 0;
-                DatabaseManager.getInstance().updateDroneStatus(id, "activa");
+            long diff = missionEndTime - now;
+            
+            if (diff <= 0) {
+                return "Finalizare...";
             }
+            
+            long minutes = diff / 60000;
+            long seconds = (diff % 60000) / 1000;
+            
+            return String.format("%02d:%02d", minutes, seconds);
+        }
+        
+        return "-";
+    }
+    
+    private void checkAndUpdateStatus() {
+        long now = System.currentTimeMillis();
+        
+        if ("mentenanta".equals(status) && maintenanceEndTime > 0 && now >= maintenanceEndTime) {
+            status = "activa";
+            maintenanceEndTime = 0;
+            DatabaseManager.updateDroneStatus(id, "activa");
+        }
+        
+        if ("in_livrare".equals(status) && missionEndTime > 0 && now >= missionEndTime) {
+            status = "activa";
+            missionType = "-";
+            missionEndTime = 0;
+            DatabaseManager.updateDroneStatus(id, "activa");
         }
     }
     

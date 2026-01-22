@@ -72,6 +72,7 @@ public class DashboardController {
     @FXML private Button addDroneButton;
     @FXML private Button setMaintenanceButton;
     @FXML private Button removeDroneButton;
+    @FXML private Button removeMaintenanceButton;  // Buton pentru scoaterea din mentenanță
     @FXML private Button openMapButton;
     @FXML private Button acceptRequestButton;
     @FXML private Button rejectRequestButton;
@@ -154,6 +155,7 @@ public class DashboardController {
             hideButton(addDroneButton);
             hideButton(removeDroneButton);
             hideButton(setMaintenanceButton);
+            hideButton(removeMaintenanceButton);
             hideButton(acceptRequestButton);
             hideButton(rejectRequestButton);
             hideButton(completeRepairButton);
@@ -191,6 +193,7 @@ public class DashboardController {
             hideButton(addDroneButton);
             hideButton(removeDroneButton);
             hideButton(setMaintenanceButton);
+            hideButton(removeMaintenanceButton);
             hideButton(openMapButton);
             hideButton(acceptRequestButton);
             hideButton(rejectRequestButton);
@@ -222,6 +225,7 @@ public class DashboardController {
             showButton(addDroneButton);
             showButton(removeDroneButton);
             showButton(setMaintenanceButton);
+            showButton(removeMaintenanceButton);  // Buton pentru scoaterea din mentenanță
             showButton(openMapButton);
             showButton(acceptRequestButton);
             showButton(rejectRequestButton);
@@ -761,6 +765,55 @@ public class DashboardController {
                 showStatus("Eroare la finalizare!", Color.RED);
             }
         });
+    }
+
+    /**
+     * Scoate drona selectată din mentenanță (pentru Admin/Tehnician)
+     * Folosit când se dorește reactivarea rapidă fără detalii suplimentare
+     */
+    @FXML
+    private void removeMaintenance() {
+        // Verifică permisiunile - doar Admin sau Tehnician pot folosi această funcție
+        if (!currentUser.isAdmin() && !currentUser.isTechnician()) {
+            showStatus("Acces interzis!", Color.RED);
+            return;
+        }
+        
+        Drone selected = droneTable.getSelectionModel().getSelectedItem();
+        
+        if (selected == null) {
+            showStatus("Selecteaza o drona din tabel!", Color.RED);
+            return;
+        }
+        
+        // Verifică dacă drona este în mentenanță
+        if (!"mentenanta".equals(selected.getStatus())) {
+            showStatus("Drona selectata nu este in mentenanta!", Color.ORANGE);
+            return;
+        }
+        
+        // Confirmare
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Scoate din Mentenanta");
+        confirm.setHeaderText("Confirmare reactivare drona");
+        confirm.setContentText("Esti sigur ca vrei sa scoti drona " + selected.getModel() + " din mentenanta si sa o reactivezi?");
+        
+        if (confirm.showAndWait().get() == ButtonType.OK) {
+            try {
+                // Actualizează statusul dronei la 'activa'
+                DatabaseManager.updateDroneStatus(selected.getId(), "activa");
+                
+                // Opțional: închide tichetul de mentenanță asociat (dacă există)
+                // DatabaseManager.getInstance().closeMaintenanceTicketForDrone(selected.getId());
+                
+                showStatus("Drona " + selected.getModel() + " a fost reactivata!", Color.GREEN);
+                loadDataFromDB();
+                updateStatistics();
+            } catch (Exception e) {
+                e.printStackTrace();
+                showStatus("Eroare la reactivare drona!", Color.RED);
+            }
+        }
     }
 
     // ==================== NAVIGARE ====================

@@ -384,8 +384,7 @@ public class MapController {
             DatabaseManager.getInstance().saveFlight(newFlight);
             
             // Actualizează statusul dronei
-            DatabaseManager.getInstance().updateDroneStatus(selectedDrone.getId(), "in_livrare");
-            
+            DatabaseManager.updateDroneStatus(selectedDrone.getId(), "in_livrare");            
             System.out.println("[MapController] Mission saved to DB for drone: " + selectedDrone.getModel());
             
             Alert success = new Alert(Alert.AlertType.INFORMATION);

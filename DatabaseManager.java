@@ -14,6 +14,31 @@ public class DatabaseManager {
         return instance;
     }
 
+    // ==================== STATIC WRAPPER METHODS (pentru compatibilitate cu controllere) ====================
+    
+    /**
+     * Metode statice pentru apelurile din FleetController și alți controllere
+     */
+    public static List<Drone> getAllDrones() {
+        return getInstance().getDrones();
+    }
+    
+    public static int countTotal() {
+        return getInstance().getTotalDrones();
+    }
+    
+    public static int countActive() {
+        return getInstance().getActiveDrones();
+    }
+    
+    public static void updateDroneStatus(int droneId, String status) {
+        getInstance().updateDroneStatusInstance(droneId, status);
+    }
+    
+    public static void saveMission(int droneId, String startCoord, String endCoord, int durationMin, String type) {
+        getInstance().saveMissionInstance(droneId, startCoord, endCoord, durationMin, type);
+    }
+
     // ==================== USERS & AUTENTIFICARE ====================
 
     public User validateUser(String username, String passwordHash) {
@@ -199,7 +224,7 @@ public class DatabaseManager {
         }
     }
 
-    public void updateDroneStatus(int droneId, String newStatus) {
+    public void updateDroneStatusInstance(int droneId, String newStatus) {
         String sql = "UPDATE Drones SET Status = ? WHERE DroneID = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -208,6 +233,30 @@ public class DatabaseManager {
             pstmt.setInt(2, droneId);
             pstmt.executeUpdate();
 
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Salvează o misiune nouă în baza de date
+     */
+    public void saveMissionInstance(int droneId, String startCoord, String endCoord, int durationMin, String type) {
+        String sql = "INSERT INTO Missions (DroneID, StartCoord, EndCoord, StartTime, DurationMin, Type, MissionStatus) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, 'in_desfasurare')";
+        
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, droneId);
+            pstmt.setString(2, startCoord);
+            pstmt.setString(3, endCoord);
+            pstmt.setTimestamp(4, new Timestamp(System.currentTimeMillis()));
+            pstmt.setInt(5, durationMin);
+            pstmt.setString(6, type);
+            
+            pstmt.executeUpdate();
+            System.out.println("[DB] Misiune salvată pentru drona " + droneId);
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -361,7 +410,7 @@ public class DatabaseManager {
      */
     public void createMaintenanceTicket(int droneId, String problemDescription) {
         // Mai întâi actualizează statusul dronei
-        updateDroneStatus(droneId, "mentenanta");
+        updateDroneStatusInstance(droneId, "mentenanta");
         
         // Apoi creează tichetul de mentenanță
         String sql = "INSERT INTO Maintenance (DroneID, DatePerformed, Type, RepairType, StatusTichet, Notes) " +
@@ -433,7 +482,7 @@ public class DatabaseManager {
         }
         
         // Actualizează statusul dronei la 'activa'
-        updateDroneStatus(droneId, "activa");
+        updateDroneStatusInstance(droneId, "activa");
         
         // Actualizează data ultimei verificări
         String sqlDrone = "UPDATE Drones SET LastCheckDate = ? WHERE DroneID = ?";
