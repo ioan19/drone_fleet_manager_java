@@ -23,29 +23,27 @@ public class LoginController {
         String pass = passwordField.getText();
 
         if (user.isEmpty() || pass.isEmpty()) {
-            statusLabel.setText("⚠ Completează toate câmpurile!");
+            statusLabel.setText("Completeaza toate campurile!");
             return;
         }
 
-        // Hash-uim parola introdusă
         String hashedPassword = hashPassword(pass);
         
         if (hashedPassword == null) {
-            statusLabel.setText("❌ Eroare la procesare parolă!");
+            statusLabel.setText("Eroare la procesare parola!");
             return;
         }
 
-        // Validăm cu baza de date
-        if (DatabaseManager.getInstance().validateUser(user, hashedPassword)) {
-            openDashboard();
+        User loggedUser = DatabaseManager.getInstance().validateUser(user, hashedPassword);
+        
+        if (loggedUser != null) {
+            Session.setCurrentUser(loggedUser);
+            openDashboard(loggedUser);
         } else {
-            statusLabel.setText("❌ Utilizator sau parolă incorectă!");
+            statusLabel.setText("Utilizator sau parola incorecta!");
         }
     }
 
-    /**
-     * Hash-uire SHA-256 pentru parole
-     */
     private String hashPassword(String password) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
@@ -63,7 +61,7 @@ public class LoginController {
         }
     }
 
-    private void openDashboard() {
+    private void openDashboard(User user) {
         try {
             Stage currentStage = (Stage) usernameField.getScene().getWindow();
             currentStage.close();
@@ -76,14 +74,14 @@ public class LoginController {
             }
 
             Stage stage = new Stage();
-            stage.setTitle("Drone Fleet Manager - Dashboard");
+            stage.setTitle("Drone Fleet Manager - " + user.getFullName() + " (" + user.getRole().toUpperCase() + ")");
             stage.setScene(scene);
-            stage.setMaximized(true); // Deschide maximizat
+            stage.setMaximized(true);
             stage.show();
             
         } catch (Exception e) {
             e.printStackTrace();
-            statusLabel.setText("❌ Eroare la deschidere Dashboard!");
+            statusLabel.setText("Eroare la deschidere Dashboard!");
         }
     }
 }
