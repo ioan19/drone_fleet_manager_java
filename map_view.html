@@ -1,95 +1,305 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <title>Harta Drone - Mission Planner</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
     <style>
-        body { margin: 0; padding: 0; }
-        #map { height: 100vh; width: 100vw; background: #e0e0e0; cursor: crosshair; }
+        body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        #map { 
+            height: 100vh; 
+            width: 100%; 
+        }
+        
+        .info-box {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: white;
+            padding: 12px 18px;
+            z-index: 1000;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            color: #2c3e50;
+            max-width: 320px;
+        }
+        
+        .info-box.loading {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+        
+        .info-box.success {
+            background: linear-gradient(135deg, #27ae60, #229954);
+            color: white;
+        }
+        
+        .info-box.error {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+        }
+        
+        .coords-display {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            background: rgba(44, 62, 80, 0.9);
+            color: white;
+            padding: 10px 15px;
+            z-index: 1000;
+            border-radius: 6px;
+            font-size: 11px;
+            font-family: monospace;
+        }
+        
+        .reset-btn {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 1000;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .reset-btn:hover {
+            background: #c0392b;
+        }
     </style>
 </head>
 <body>
+
     <div id="map"></div>
+    <div class="info-box loading" id="status">Se incarca harta...</div>
+    <div class="coords-display" id="coords">Coordonate: -</div>
+    <button class="reset-btn" onclick="resetMap()">Reseteaza Harta</button>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
+        console.log("[MAP] Initializing interactive map...");
+
         var map;
         var startMarker = null;
         var endMarker = null;
         var routeLine = null;
-        var apiKey = 'pk.158719224b8587f1e2f1cd81fed13147'; // Cheia ta LocationIQ
 
         function initMap() {
-            // Centram pe Romania
-            map = L.map('map').setView([45.9432, 24.9668], 7);
+            console.log("[MAP] Creating map object...");
+            
+            // Centrul default: București
+            map = L.map('map').setView([44.4268, 26.1025], 13);
 
-            L.tileLayer('https://{s}-tiles.locationiq.com/v3/streets/r/{z}/{x}/{y}.png?key=' + apiKey, {
-                attribution: '© LocationIQ, © OpenStreetMap',
-                maxZoom: 18
+            // Folosim OpenStreetMap standard (funcționează fără API key)
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
             }).addTo(map);
 
-            // ASCULTATOR DE CLICK PE HARTA
-            map.on('click', handleMapClick);
+            console.log("[MAP] Map created with OpenStreetMap tiles!");
 
-            setTimeout(function(){ map.invalidateSize(); }, 500);
+            // Event listener pentru click
+            map.on('click', onMapClick);
+            
+            // Event listener pentru mișcarea mouse-ului
+            map.on('mousemove', function(e) {
+                document.getElementById('coords').textContent = 
+                    'Lat: ' + e.latlng.lat.toFixed(5) + ' | Lng: ' + e.latlng.lng.toFixed(5);
+            });
+            
+            console.log("[MAP] Event listeners added!");
+            updateStatus("Harta incarcata! Click pentru a seta punctul START", "success");
         }
 
-        function handleMapClick(e) {
+        function onMapClick(e) {
             var lat = e.latlng.lat;
-            var lon = e.latlng.lng;
-
-            if (!startMarker || (startMarker && endMarker)) {
-                // CAZ 1: Resetam si punem Start (Preluare)
-                resetMap();
-                
-                var greenIcon = new L.Icon({
-                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                    iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
-                });
-
-                startMarker = L.marker([lat, lon], {icon: greenIcon}).addTo(map).bindPopup("<b>START</b><br>Preluare Pachet").openPopup();
-                
-                // Putem notifica Java ca s-a selectat startul (optional)
-                
+            var lng = e.latlng.lng;
+            
+            console.log("[MAP] Map clicked: " + lat + ", " + lng);
+            
+            if (startMarker == null) {
+                console.log("[MAP] Setting START point");
+                setStartPoint(lat, lng);
+            } else if (endMarker == null) {
+                console.log("[MAP] Setting END point");
+                setEndPoint(lat, lng);
             } else {
-                // CAZ 2: Punem End (Livrare) si Calculam
-                var redIcon = new L.Icon({
-                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                    iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
-                });
-
-                endMarker = L.marker([lat, lon], {icon: redIcon}).addTo(map).bindPopup("<b>STOP</b><br>Livrare Pachet").openPopup();
-
-                // Desenam linia
-                var latlngs = [startMarker.getLatLng(), endMarker.getLatLng()];
-                routeLine = L.polyline(latlngs, {color: 'blue', weight: 4, dashArray: '10, 10'}).addTo(map);
-                map.fitBounds(routeLine.getBounds(), {padding: [50, 50]});
-
-                // --- TRIMITEM COORDONATELE LA JAVA PENTRU CALCUL ---
-                if(window.javaApp) {
-                    var sPos = startMarker.getLatLng();
-                    var ePos = endMarker.getLatLng();
-                    // Apelam functia din Java
-                    javaApp.receiveCoordinatesFromJS(sPos.lat, sPos.lng, ePos.lat, ePos.lng);
-                } else {
-                    console.error("Java Bridge not connected!");
-                }
+                console.log("[MAP] Resetting map (both points existed)");
+                resetMap();
+                setStartPoint(lat, lng);
             }
         }
 
-        function resetMap() {
-            if(startMarker) map.removeLayer(startMarker);
-            if(endMarker) map.removeLayer(endMarker);
-            if(routeLine) map.removeLayer(routeLine);
-            startMarker = null;
-            endMarker = null;
-            routeLine = null;
+        function setStartPoint(lat, lng) {
+            if (startMarker) {
+                map.removeLayer(startMarker);
+                console.log("[MAP] Previous START marker removed");
+            }
+            
+            startMarker = L.marker([lat, lng], {icon: getIcon('green')})
+                .addTo(map)
+                .bindPopup("<b>START</b><br>Lat: " + lat.toFixed(5) + "<br>Lng: " + lng.toFixed(5))
+                .openPopup();
+            
+            console.log("[MAP] START marker created: " + lat + ", " + lng);
+            updateStatus("START setat! Acum selecteaza punctul DESTINATIE", "success");
         }
 
+        function setEndPoint(lat, lng) {
+            if (endMarker) {
+                map.removeLayer(endMarker);
+                console.log("[MAP] Previous END marker removed");
+            }
+            
+            endMarker = L.marker([lat, lng], {icon: getIcon('red')})
+                .addTo(map)
+                .bindPopup("<b>DESTINATIE</b><br>Lat: " + lat.toFixed(5) + "<br>Lng: " + lng.toFixed(5))
+                .openPopup();
+            
+            console.log("[MAP] END marker created: " + lat + ", " + lng);
+            
+            // Desenează linia și trimite coordonatele la Java
+            drawRouteAndSendData();
+        }
+
+        function drawRouteAndSendData() {
+            if (!startMarker || !endMarker) {
+                console.log("[MAP] Cannot draw route - missing markers");
+                return;
+            }
+            
+            var start = startMarker.getLatLng();
+            var end = endMarker.getLatLng();
+
+            console.log("[MAP] Drawing route between: " + start + " -> " + end);
+
+            // Șterge linia veche dacă există
+            if (routeLine) {
+                map.removeLayer(routeLine);
+            }
+            
+            // Desenează linia
+            routeLine = L.polyline([start, end], {
+                color: '#3498db',
+                weight: 4,
+                opacity: 0.8,
+                dashArray: '10, 5'
+            }).addTo(map);
+            
+            // Zoom pe rută
+            map.fitBounds(routeLine.getBounds(), {padding: [50, 50]});
+
+            console.log("[MAP] Route line drawn!");
+
+            // Trimite datele la Java
+            sendDataToJava(start, end);
+        }
+        
+        function sendDataToJava(start, end) {
+            console.log("[MAP] Attempting to send data to Java...");
+            console.log("   START: " + start.lat + ", " + start.lng);
+            console.log("   END: " + end.lat + ", " + end.lng);
+            
+            // Verifică dacă bridge-ul Java este disponibil
+            if (window.javaApp && typeof window.javaApp.receiveCoordinatesFromJS === 'function') {
+                try {
+                    console.log("[MAP] Calling javaApp.receiveCoordinatesFromJS...");
+                    window.javaApp.receiveCoordinatesFromJS(
+                        start.lat, 
+                        start.lng, 
+                        end.lat, 
+                        end.lng
+                    );
+                    console.log("[MAP] Data sent successfully to Java!");
+                    updateStatus("Se calculeaza misiunea...", "loading");
+                } catch (error) {
+                    console.error("[MAP] Error calling Java: " + error);
+                    updateStatus("Eroare la comunicare cu sistemul: " + error.message, "error");
+                }
+            } else {
+                console.warn("[MAP] Java bridge not available!");
+                console.log("   window.javaApp exists: " + (window.javaApp !== undefined));
+                if (window.javaApp) {
+                    console.log("   receiveCoordinatesFromJS exists: " + (typeof window.javaApp.receiveCoordinatesFromJS === 'function'));
+                }
+                
+                // Retry după un scurt delay
+                setTimeout(function() {
+                    console.log("[MAP] Retrying to send data...");
+                    if (window.javaApp && typeof window.javaApp.receiveCoordinatesFromJS === 'function') {
+                        try {
+                            window.javaApp.receiveCoordinatesFromJS(start.lat, start.lng, end.lat, end.lng);
+                            console.log("[MAP] Retry successful!");
+                            updateStatus("Se calculeaza misiunea...", "loading");
+                        } catch (e) {
+                            console.error("[MAP] Retry failed: " + e);
+                            updateStatus("Eroare: Conexiune indisponibila", "error");
+                        }
+                    } else {
+                        updateStatus("Ruta setata! Asteptare conexiune sistem...", "error");
+                    }
+                }, 500);
+            }
+        }
+
+        function getIcon(color) {
+            return new L.Icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-' + color + '.png',
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            });
+        }
+
+        function resetMap() {
+            console.log("[MAP] Resetting map...");
+            
+            if (startMarker) {
+                map.removeLayer(startMarker);
+                startMarker = null;
+            }
+            if (endMarker) {
+                map.removeLayer(endMarker);
+                endMarker = null;
+            }
+            if (routeLine) {
+                map.removeLayer(routeLine);
+                routeLine = null;
+            }
+            
+            updateStatus("Harta resetata - Click pentru a seta START", "success");
+            console.log("[MAP] Map reset complete!");
+        }
+
+        function updateStatus(message, type) {
+            var statusBox = document.getElementById('status');
+            statusBox.textContent = message;
+            statusBox.className = 'info-box ' + type;
+        }
+
+        // Inițializare
+        console.log("[MAP] Starting map system...");
         initMap();
+        console.log("[MAP] Map system ready!");
+
     </script>
 </body>
 </html>

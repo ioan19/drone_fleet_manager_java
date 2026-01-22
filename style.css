@@ -1,16 +1,16 @@
-/* style.css - Premium Enterprise Theme (Final Version) */
+/* style.css - Premium Enterprise Theme - Enhanced Version */
 
-/* --- Setări Globale --- */
+/* === SETĂRI GLOBALE === */
 .root {
     -fx-font-family: "Segoe UI", "Roboto", Helvetica, Arial, sans-serif;
-    -fx-background-color: #f4f7f6; /* Gri foarte deschis, odihnitor pentru ochi */
+    -fx-background-color: #f4f7f6;
 }
 
-/* --- Tipografie (Headere) --- */
+/* === TIPOGRAFIE === */
 .h1 {
     -fx-font-size: 24px;
     -fx-font-weight: bold;
-    -fx-text-fill: #2c3e50; /* Navy Blue */
+    -fx-text-fill: #2c3e50;
 }
 
 .h2 {
@@ -20,184 +20,297 @@
 }
 
 .label-dim {
-    -fx-text-fill: #7f8c8d; /* Gri pentru subtitlu */
+    -fx-text-fill: #7f8c8d;
 }
 
-/* --- Containere & Carduri --- */
+/* === CONTAINERE & CARDURI === */
 .card {
     -fx-background-color: white;
-    -fx-background-radius: 8;
-    /* Umbra subtilă pentru efect 3D */
-    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 2);
+    -fx-background-radius: 10;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 12, 0, 0, 3);
     -fx-padding: 20;
 }
 
 .sidebar {
-    -fx-background-color: #2c3e50; /* Bara de jos întunecată */
+    -fx-background-color: #2c3e50;
 }
 
-/* --- Butoane --- */
+/* === BUTOANE === */
 .button {
     -fx-background-color: #ecf0f1;
     -fx-text-fill: #2c3e50;
     -fx-font-weight: bold;
-    -fx-background-radius: 5;
+    -fx-background-radius: 6;
     -fx-cursor: hand;
-    -fx-padding: 8 15;
-    -fx-effect: null; /* Scoatem efectele default vechi */
+    -fx-padding: 10 18;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 4, 0, 0, 2);
+    -fx-transition: all 0.3s ease;
 }
 
 .button:hover {
     -fx-background-color: #bdc3c7;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.15), 6, 0, 0, 3);
 }
 
-/* Buton Albastru (Login, Principal) */
+.button:pressed {
+    -fx-background-color: #95a5a6;
+    -fx-translate-y: 1px;
+}
+
+/* Buton Albastru (Primary) */
 .button-primary {
-    -fx-background-color: #3498db;
+    -fx-background-color: linear-gradient(to bottom, #3498db, #2980b9);
     -fx-text-fill: white;
 }
+
 .button-primary:hover {
-    -fx-background-color: #2980b9;
+    -fx-background-color: linear-gradient(to bottom, #2980b9, #21618c);
 }
 
-/* Buton Verde (Confirmare) */
+/* Buton Verde (Success) */
 .button-success {
-    -fx-background-color: #27ae60;
+    -fx-background-color: linear-gradient(to bottom, #27ae60, #229954);
     -fx-text-fill: white;
 }
+
 .button-success:hover {
-    -fx-background-color: #219150;
+    -fx-background-color: linear-gradient(to bottom, #229954, #1e8449);
 }
 
-/* Buton Roșu (Ștergere, Eroare) */
+.button-success:disabled {
+    -fx-background-color: #95a5a6;
+    -fx-opacity: 0.6;
+}
+
+/* Buton Roșu (Danger) */
 .button-danger {
-    -fx-background-color: #e74c3c;
+    -fx-background-color: linear-gradient(to bottom, #e74c3c, #c0392b);
     -fx-text-fill: white;
 }
+
 .button-danger:hover {
-    -fx-background-color: #c0392b;
+    -fx-background-color: linear-gradient(to bottom, #c0392b, #a93226);
 }
 
-/* --- Input Fields (Text) --- */
+/* === INPUT FIELDS === */
 .text-field, .password-field {
     -fx-background-color: white;
-    -fx-border-color: #bdc3c7;
-    -fx-border-radius: 4;
-    -fx-background-radius: 4;
-    -fx-padding: 8;
+    -fx-border-color: #d0d3d4;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-padding: 10;
+    -fx-font-size: 13px;
 }
 
 .text-field:focused, .password-field:focused {
-    -fx-border-color: #3498db; /* Albastru când scrii */
+    -fx-border-color: #3498db;
+    -fx-border-width: 2px;
+    -fx-effect: dropshadow(three-pass-box, rgba(52, 152, 219, 0.3), 5, 0, 0, 0);
 }
 
-/* --- TABLE VIEW (Partea Critică) --- */
+/* === COMBOBOX === */
+.combo-box {
+    -fx-background-color: white;
+    -fx-background-radius: 6;
+    -fx-border-color: #d0d3d4;
+    -fx-border-radius: 6;
+    -fx-padding: 8;
+}
+
+.combo-box:focused {
+    -fx-border-color: #3498db;
+    -fx-border-width: 2px;
+}
+
+.combo-box .list-cell {
+    -fx-background-color: white;
+    -fx-text-fill: #2c3e50;
+    -fx-padding: 8;
+}
+
+.combo-box .list-cell:hover {
+    -fx-background-color: #ecf0f1;
+}
+
+/* === TABLE VIEW === */
 .table-view {
     -fx-background-color: transparent;
     -fx-border-color: transparent;
+    -fx-table-cell-border-color: transparent;
 }
 
-/* Header-ul Tabelului */
+/* Header Tabel */
 .table-view .column-header-background {
     -fx-background-color: transparent;
 }
 
 .table-view .column-header {
     -fx-background-color: transparent;
-    -fx-border-bottom-color: #bdc3c7;
-    -fx-border-bottom-width: 2px;
-    -fx-padding: 10 5;
+    -fx-border-color: transparent transparent #bdc3c7 transparent;
+    -fx-border-width: 0 0 2 0;
+    -fx-padding: 12 8;
 }
 
 .table-view .column-header .label {
     -fx-text-fill: #2c3e50;
     -fx-font-weight: bold;
+    -fx-font-size: 12px;
 }
 
-/* Celulele normale */
+.table-view .filler {
+    -fx-background-color: transparent;
+}
+
+/* Celule */
 .table-view .table-cell {
-    -fx-padding: 10;
+    -fx-padding: 12 8;
     -fx-alignment: CENTER-LEFT;
     -fx-text-fill: #2c3e50;
     -fx-border-color: transparent;
+    -fx-font-size: 12px;
 }
 
-/* Culori alternative pentru rânduri (Zebra striping) */
+/* Rânduri Alternative (Zebra) */
 .table-row-cell:odd {
     -fx-background-color: #fdfdfd;
 }
+
 .table-row-cell:even {
     -fx-background-color: white;
 }
 
-/* --- FIX PENTRU SELECȚIE (Problema textului invizibil) --- */
-
-/* 1. Setăm fundalul rândului selectat la un turcoaz deschis */
+/* Rând Selectat - FIX IMPORTANT */
 .table-row-cell:selected {
-    -fx-background-color: #d1f2eb; 
+    -fx-background-color: #d6eaf8;
     -fx-background-insets: 0;
 }
 
-/* 2. FORȚĂM textul să fie închis la culoare (Navy) când e selectat */
 .table-row-cell:selected .text {
-    -fx-fill: #2c3e50; 
+    -fx-fill: #2c3e50;
 }
 
-/* 3. Caz special pentru celule goale selectate (ca să nu arate urât) */
+.table-row-cell:selected .table-cell {
+    -fx-text-fill: #2c3e50;
+}
+
+/* Hover */
+.table-row-cell:hover {
+    -fx-background-color: #ecf0f1;
+}
+
 .table-row-cell:empty {
     -fx-background-color: transparent;
 }
 
-/* --- Scrollbar Modern --- */
-.scroll-bar:vertical .thumb, .scroll-bar:horizontal .thumb {
-    -fx-background-color: #bdc3c7;
-    -fx-background-radius: 5;
+/* === SCROLLBAR === */
+.scroll-bar {
+    -fx-background-color: transparent;
 }
-.scroll-bar:vertical:hover .thumb {
+
+.scroll-bar .thumb {
+    -fx-background-color: #bdc3c7;
+    -fx-background-radius: 6;
+}
+
+.scroll-bar .thumb:hover {
     -fx-background-color: #95a5a6;
 }
-/* style.css - Premium Enterprise Theme */
-.root {
-    -fx-font-family: "Segoe UI", "Roboto", Helvetica, Arial, sans-serif;
-    -fx-background-color: #f4f7f6; 
-}
-.h1 { -fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50; }
-.h2 { -fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #34495e; }
-.label-dim { -fx-text-fill: #7f8c8d; }
 
-.card {
-    -fx-background-color: white;
-    -fx-background-radius: 8;
-    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 2);
-    -fx-padding: 20;
-}
-.sidebar { -fx-background-color: #2c3e50; }
-
-.button {
+.scroll-bar .track {
     -fx-background-color: #ecf0f1;
-    -fx-text-fill: #2c3e50;
+    -fx-background-radius: 6;
+}
+
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+}
+
+/* === SEPARATOR === */
+.separator {
+    -fx-background-color: #ecf0f1;
+}
+
+/* === WEBVIEW === */
+.web-view {
+    -fx-background-color: transparent;
+}
+
+/* === DIALOG === */
+.dialog-pane {
+    -fx-background-color: white;
+    -fx-background-radius: 10;
+}
+
+.dialog-pane .header-panel {
+    -fx-background-color: #3498db;
+    -fx-background-radius: 10 10 0 0;
+}
+
+.dialog-pane .header-panel .label {
+    -fx-text-fill: white;
     -fx-font-weight: bold;
-    -fx-background-radius: 5;
+}
+
+/* === LABEL PERSONALIZATE === */
+.label-success {
+    -fx-text-fill: #27ae60;
+    -fx-font-weight: bold;
+}
+
+.label-warning {
+    -fx-text-fill: #f39c12;
+    -fx-font-weight: bold;
+}
+
+.label-danger {
+    -fx-text-fill: #e74c3c;
+    -fx-font-weight: bold;
+}
+
+/* === ANIMAȚII ȘI TRANZIȚII === */
+.button,
+.table-row-cell {
     -fx-cursor: hand;
-    -fx-padding: 8 15;
 }
-.button:hover { -fx-background-color: #bdc3c7; }
-.button-primary { -fx-background-color: #3498db; -fx-text-fill: white; }
-.button-success { -fx-background-color: #27ae60; -fx-text-fill: white; }
-.button-danger { -fx-background-color: #e74c3c; -fx-text-fill: white; }
 
-/* TABLE VIEW FIX - Esential pentru vizibilitate */
-.table-view { -fx-background-color: transparent; -fx-border-color: transparent; }
-.table-view .column-header { -fx-background-color: transparent; -fx-border-bottom-color: #bdc3c7; -fx-border-bottom-width: 2px; }
-.table-view .table-cell { -fx-text-fill: #2c3e50; -fx-alignment: CENTER-LEFT; }
-.table-row-cell:odd { -fx-background-color: #fdfdfd; }
-.table-row-cell:even { -fx-background-color: white; }
-
-/* Cand selectezi un rand: */
-.table-row-cell:selected {
-    -fx-background-color: #d1f2eb; /* Verde deschis */
-    -fx-background-insets: 0;
+/* === SPLIT PANE === */
+.split-pane {
+    -fx-background-color: transparent;
 }
-.table-row-cell:selected .text {
-    -fx-fill: #2c3e50; /* Text inchis la culoare - FOARTE IMPORTANT */
+
+.split-pane .split-pane-divider {
+    -fx-background-color: #d0d3d4;
+    -fx-padding: 0 1 0 1;
+}
+
+/* === PROGRESS BAR === */
+.progress-bar {
+    -fx-background-color: #ecf0f1;
+    -fx-background-radius: 6;
+}
+
+.progress-bar .bar {
+    -fx-background-color: linear-gradient(to right, #3498db, #2980b9);
+    -fx-background-radius: 6;
+}
+
+/* === TOOLTIP === */
+.tooltip {
+    -fx-background-color: #2c3e50;
+    -fx-text-fill: white;
+    -fx-background-radius: 6;
+    -fx-font-size: 11px;
+    -fx-padding: 8 12;
+}
+
+/* === RESPONSIVE ADJUSTMENTS === */
+@media (max-width: 1200px) {
+    .h1 {
+        -fx-font-size: 20px;
+    }
+    
+    .h2 {
+        -fx-font-size: 16px;
+    }
 }

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.web.WebView?>
+
+<SplitPane dividerPositions="0.25" xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+           fx:controller="dronefleet.MissionController" style="-fx-padding: 10;">
+    <items>
+        <VBox spacing="15" styleClass="card">
+            <Label text="Configurare Misiune" styleClass="h2"/>
+            
+            <VBox spacing="5">
+                <Label text="Tip Misiune:" style="-fx-font-weight:bold;"/>
+                <ComboBox fx:id="missionTypeCombo" prefWidth="250"/>
+            </VBox>
+
+            <VBox fx:id="weightContainer" spacing="5">
+                <Label text="Greutate Pachet (kg):" style="-fx-font-weight:bold;"/>
+                <TextField fx:id="weightField" text="1.5"/>
+            </VBox>
+
+            <Separator/>
+            <Label text="1. Selectează punctele pe hartă" style="-fx-text-fill:gray;"/>
+            <Label fx:id="statusLabel" text="Așteptare input..." style="-fx-font-weight:bold;"/>
+
+            <VBox fx:id="resultCard" visible="false" style="-fx-background-color:#e8f6f3; -fx-padding:10; -fx-border-color:#2ecc71; -fx-border-width:0 0 0 5;">
+                <Label text="Dronă Alocată:" style="-fx-font-size:10;"/>
+                <Label fx:id="droneLabel" text="-" style="-fx-font-weight:bold;"/>
+                <Label text="Distanță:" style="-fx-font-size:10;"/>
+                <Label fx:id="distanceLabel" text="0 km" style="-fx-font-weight:bold;"/>
+                <Label text="Cost:" style="-fx-font-size:10;"/>
+                <Label fx:id="costLabel" text="0 RON" style="-fx-font-weight:bold; -fx-text-fill:#f39c12;"/>
+            </VBox>
+
+            <Pane VBox.vgrow="ALWAYS"/>
+            <Button fx:id="confirmButton" text="Lansează Misiunea" styleClass="button-success" disable="true" maxWidth="Infinity"/>
+        </VBox>
+
+        <StackPane styleClass="card">
+            <WebView fx:id="webView"/>
+        </StackPane>
+    </items>
+</SplitPane>

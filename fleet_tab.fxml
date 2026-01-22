@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.*?>
+
+<VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="dronefleet.FleetController" spacing="20" style="-fx-padding: 20;">
+
+    <HBox spacing="20">
+        <VBox styleClass="card" HBox.hgrow="ALWAYS" alignment="CENTER">
+            <Label text="TOTAL DRONE" styleClass="label-dim"/>
+            <Label fx:id="totalLabel" text="0" style="-fx-font-size:36; -fx-text-fill:#3498db; -fx-font-weight:bold;"/>
+        </VBox>
+        <VBox styleClass="card" HBox.hgrow="ALWAYS" alignment="CENTER">
+            <Label text="ACTIVE" styleClass="label-dim"/>
+            <Label fx:id="activeLabel" text="0" style="-fx-font-size:36; -fx-text-fill:#2ecc71; -fx-font-weight:bold;"/>
+        </VBox>
+        <VBox styleClass="card" HBox.hgrow="ALWAYS" alignment="CENTER">
+            <Label text="MENTENANȚĂ" styleClass="label-dim"/>
+            <Label fx:id="maintLabel" text="0" style="-fx-font-size:36; -fx-text-fill:#e74c3c; -fx-font-weight:bold;"/>
+        </VBox>
+    </HBox>
+
+    <Label text="Listă Drone" styleClass="h2"/>
+
+    <TableView fx:id="droneTable" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="colId" text="ID" prefWidth="50"/>
+            <TableColumn fx:id="colModel" text="Model" prefWidth="150"/>
+            <TableColumn fx:id="colStatus" text="Status" prefWidth="100"/>
+            <TableColumn fx:id="colPayload" text="Capacitate (kg)" prefWidth="100"/>
+            <TableColumn fx:id="colTime" text="Activitate / Timp" prefWidth="150"/>
+        </columns>
+        <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/></columnResizePolicy>
+    </TableView>
+
+    <HBox spacing="10" alignment="CENTER_RIGHT">
+        <Button text="+ Adaugă Dronă" onAction="#addDrone" styleClass="button"/>
+        <Button text="Trimite în Service" onAction="#setMaintenance" styleClass="button" style="-fx-background-color: #f39c12; -fx-text-fill:white;"/>
+        <Button text="Reîmprospătează" onAction="#refreshData" styleClass="button-success"/>
+    </HBox>
+</VBox>
