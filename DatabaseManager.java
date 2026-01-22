@@ -14,11 +14,8 @@ public class DatabaseManager {
         return instance;
     }
 
-    // ==================== STATIC WRAPPER METHODS (pentru compatibilitate cu controllere) ====================
+    // ==================== STATIC WRAPPER METHODS ====================
     
-    /**
-     * Metode statice pentru apelurile din FleetController și alți controllere
-     */
     public static List<Drone> getAllDrones() {
         return getInstance().getDrones();
     }
@@ -84,13 +81,24 @@ public class DatabaseManager {
 
     // ==================== DRONE ====================
 
+    /**
+     * Obține toate dronele cu verificare corectă a misiunilor active
+     * O misiune este considerată activă DOAR dacă:
+     * 1. MissionStatus = 'in_desfasurare'
+     * 2. StartTime + DurationMin > NOW (nu a expirat)
+     */
     public List<Drone> getDrones() {
         List<Drone> list = new ArrayList<>();
+        
+        // Mai întâi, curățăm misiunile expirate
+        cleanupExpiredMissions();
+        
         String sql = "SELECT d.DroneID, d.Model, d.Type, d.Status, d.PayloadCapacity, d.AutonomyMin, " +
                      "m.Type as MissionType, m.StartTime, m.DurationMin " +
                      "FROM Drones d " +
                      "LEFT JOIN Missions m ON d.DroneID = m.DroneID " +
                      "AND m.MissionStatus = 'in_desfasurare' " +
+                     "AND DATE_ADD(m.StartTime, INTERVAL m.DurationMin MINUTE) > NOW() " +
                      "ORDER BY d.DroneID";
         
         try (Connection conn = DatabaseConnection.getConnection();
@@ -108,13 +116,15 @@ public class DatabaseManager {
                 Drone d = new Drone(id, model, type, status, payload, autonomy);
                 
                 String missionType = rs.getString("MissionType");
-                if (missionType != null) {
-                    d.setMissionType(capitalizeFirst(missionType));
+                Timestamp startTime = rs.getTimestamp("StartTime");
+                int duration = rs.getInt("DurationMin");
+                
+                if (missionType != null && startTime != null) {
+                    long endTime = startTime.getTime() + (duration * 60000L);
+                    long now = System.currentTimeMillis();
                     
-                    Timestamp startTime = rs.getTimestamp("StartTime");
-                    int duration = rs.getInt("DurationMin");
-                    if (startTime != null) {
-                        long endTime = startTime.getTime() + (duration * 60000L);
+                    if (endTime > now) {
+                        d.setMissionType(capitalizeFirst(missionType));
                         d.setMissionEndTime(endTime);
                         
                         if (!"mentenanta".equals(status) && !"inactiva".equals(status)) {
@@ -129,6 +139,26 @@ public class DatabaseManager {
             e.printStackTrace();
         }
         return list;
+    }
+
+    /**
+     * Curăță misiunile expirate - le marchează ca finalizate
+     */
+    public void cleanupExpiredMissions() {
+        String sql = "UPDATE Missions SET MissionStatus = 'finalizat' " +
+                     "WHERE MissionStatus = 'in_desfasurare' " +
+                     "AND DATE_ADD(StartTime, INTERVAL DurationMin MINUTE) < NOW()";
+        
+        try (Connection conn = DatabaseConnection.getConnection();
+             Statement stmt = conn.createStatement()) {
+            
+            int updated = stmt.executeUpdate(sql);
+            if (updated > 0) {
+                System.out.println("[DB] Cleanup: " + updated + " misiuni expirate marcate ca finalizate");
+            }
+        } catch (SQLException e) {
+            System.err.println("[DB] Cleanup warning: " + e.getMessage());
+        }
     }
 
     public List<Drone> getMaintenanceDrones() {
@@ -203,7 +233,6 @@ public class DatabaseManager {
     }
 
     public void deleteDrone(Drone d) {
-        // Mai întâi șterge misiunile asociate
         String deleteMissions = "DELETE FROM Missions WHERE DroneID = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(deleteMissions)) {
@@ -213,7 +242,15 @@ public class DatabaseManager {
             e.printStackTrace();
         }
         
-        // Apoi șterge drona
+        String deleteRequests = "UPDATE DeliveryRequests SET AssignedDroneID = NULL WHERE AssignedDroneID = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(deleteRequests)) {
+            pstmt.setInt(1, d.getId());
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            // Ignorăm dacă tabelul nu există
+        }
+        
         String sql = "DELETE FROM Drones WHERE DroneID = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -232,15 +269,13 @@ public class DatabaseManager {
             pstmt.setString(1, newStatus);
             pstmt.setInt(2, droneId);
             pstmt.executeUpdate();
+            System.out.println("[DB] Drone " + droneId + " status updated to: " + newStatus);
 
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
     
-    /**
-     * Salvează o misiune nouă în baza de date
-     */
     public void saveMissionInstance(int droneId, String startCoord, String endCoord, int durationMin, String type) {
         String sql = "INSERT INTO Missions (DroneID, StartCoord, EndCoord, StartTime, DurationMin, Type, MissionStatus) " +
                      "VALUES (?, ?, ?, ?, ?, ?, 'in_desfasurare')";
@@ -262,11 +297,8 @@ public class DatabaseManager {
         }
     }
 
-    // ==================== CERERI DE LIVRARE (OPERATOR) ====================
+    // ==================== CERERI DE LIVRARE ====================
     
-    /**
-     * Operatorul creează o cerere - aceasta ajunge la Admin cu status 'pending'
-     */
     public void createDeliveryRequest(int operatorId, String startCoord, String endCoord, 
                                      double weight, String notes) {
         String sql = "INSERT INTO DeliveryRequests (OperatorID, StartCoord, EndCoord, Weight, Notes, Status, RequestDate) " +
@@ -289,10 +321,43 @@ public class DatabaseManager {
         }
     }
 
-    /**
-     * Operatorul vede DOAR cererile ACCEPTATE (assigned, in_progress, completed)
-     * NU vede cererile pending sau rejected
-     */
+    public List<DeliveryRequest> getAllDeliveryRequestsForOperator(int operatorId) {
+        List<DeliveryRequest> list = new ArrayList<>();
+        String sql = "SELECT dr.RequestID, dr.OperatorID, dr.StartCoord, dr.EndCoord, dr.Weight, dr.Notes, " +
+                     "dr.Status, dr.RequestDate, dr.AssignedDroneID, d.Model as DroneModel " +
+                     "FROM DeliveryRequests dr " +
+                     "LEFT JOIN Drones d ON dr.AssignedDroneID = d.DroneID " +
+                     "WHERE dr.OperatorID = ? " +
+                     "ORDER BY dr.RequestDate DESC";
+        
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, operatorId);
+            
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    DeliveryRequest req = new DeliveryRequest(
+                        rs.getInt("RequestID"),
+                        rs.getInt("OperatorID"),
+                        rs.getString("StartCoord"),
+                        rs.getString("EndCoord"),
+                        rs.getDouble("Weight"),
+                        rs.getString("Notes"),
+                        rs.getString("Status"),
+                        formatTimestamp(rs.getTimestamp("RequestDate")),
+                        rs.getInt("AssignedDroneID"),
+                        rs.getString("DroneModel")
+                    );
+                    list.add(req);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
     public List<DeliveryRequest> getAcceptedDeliveryRequests(int operatorId) {
         List<DeliveryRequest> list = new ArrayList<>();
         String sql = "SELECT dr.RequestID, dr.OperatorID, dr.StartCoord, dr.EndCoord, dr.Weight, dr.Notes, " +
@@ -330,9 +395,6 @@ public class DatabaseManager {
         return list;
     }
     
-    /**
-     * Admin vede TOATE cererile PENDING pentru aprobare
-     */
     public List<DeliveryRequest> getPendingDeliveryRequests() {
         List<DeliveryRequest> list = new ArrayList<>();
         String sql = "SELECT dr.RequestID, dr.OperatorID, dr.StartCoord, dr.EndCoord, dr.Weight, dr.Notes, " +
@@ -370,9 +432,6 @@ public class DatabaseManager {
         return list;
     }
 
-    /**
-     * Admin acceptă cererea și alocă o dronă
-     */
     public void assignDroneToRequest(int requestId, int droneId) {
         String sql = "UPDATE DeliveryRequests SET AssignedDroneID = ?, Status = 'assigned' WHERE RequestID = ?";
         try (Connection conn = DatabaseConnection.getConnection();
@@ -387,9 +446,6 @@ public class DatabaseManager {
         }
     }
     
-    /**
-     * Admin respinge cererea
-     */
     public void rejectDeliveryRequest(int requestId) {
         String sql = "UPDATE DeliveryRequests SET Status = 'rejected' WHERE RequestID = ?";
         try (Connection conn = DatabaseConnection.getConnection();
@@ -403,16 +459,11 @@ public class DatabaseManager {
         }
     }
 
-    // ==================== CERERI DE REPARAȚIE (TEHNICIAN) ====================
+    // ==================== MENTENANȚĂ ====================
     
-    /**
-     * Când Admin trimite o dronă în mentenanță, se creează automat un tichet de reparație
-     */
     public void createMaintenanceTicket(int droneId, String problemDescription) {
-        // Mai întâi actualizează statusul dronei
         updateDroneStatusInstance(droneId, "mentenanta");
         
-        // Apoi creează tichetul de mentenanță
         String sql = "INSERT INTO Maintenance (DroneID, DatePerformed, Type, RepairType, StatusTichet, Notes) " +
                      "VALUES (?, ?, 'Reparatie', 'In asteptare diagnostic', 'deschis', ?)";
         try (Connection conn = DatabaseConnection.getConnection();
@@ -427,9 +478,6 @@ public class DatabaseManager {
         }
     }
     
-    /**
-     * Tehnicianul vede toate tichetele de reparație deschise
-     */
     public List<MaintenanceTicket> getOpenMaintenanceTickets() {
         List<MaintenanceTicket> list = new ArrayList<>();
         String sql = "SELECT m.MaintenanceID, m.DroneID, m.DatePerformed, m.Type, m.RepairType, " +
@@ -463,11 +511,7 @@ public class DatabaseManager {
         return list;
     }
     
-    /**
-     * Tehnicianul finalizează reparația - specifică tipul reparației
-     */
     public void completeMaintenanceTicket(int ticketId, int droneId, String repairType, String notes) {
-        // Actualizează tichetul
         String sqlTicket = "UPDATE Maintenance SET StatusTichet = 'finalizat', RepairType = ?, Notes = ? " +
                           "WHERE MaintenanceID = ?";
         try (Connection conn = DatabaseConnection.getConnection();
@@ -476,15 +520,12 @@ public class DatabaseManager {
             pstmt.setString(2, notes);
             pstmt.setInt(3, ticketId);
             pstmt.executeUpdate();
-            System.out.println("[DB] Tichet #" + ticketId + " finalizat cu reparatie: " + repairType);
         } catch (SQLException e) {
             e.printStackTrace();
         }
         
-        // Actualizează statusul dronei la 'activa'
         updateDroneStatusInstance(droneId, "activa");
         
-        // Actualizează data ultimei verificări
         String sqlDrone = "UPDATE Drones SET LastCheckDate = ? WHERE DroneID = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sqlDrone)) {
@@ -496,9 +537,6 @@ public class DatabaseManager {
         }
     }
     
-    /**
-     * Tehnicianul marchează tichetul ca fiind în lucru
-     */
     public void startWorkingOnTicket(int ticketId) {
         String sql = "UPDATE Maintenance SET StatusTichet = 'in_lucru' WHERE MaintenanceID = ?";
         try (Connection conn = DatabaseConnection.getConnection();
@@ -555,11 +593,8 @@ public class DatabaseManager {
                     rs.getInt("AutonomyMin")
                 );
                 
-                String origin = rs.getString("StartCoord");
-                String dest = rs.getString("EndCoord");
-                String time = rs.getString("StartTime");
-                
-                flights.add(new Flight(drone, origin, dest, time));
+                flights.add(new Flight(drone, rs.getString("StartCoord"), 
+                           rs.getString("EndCoord"), rs.getString("StartTime")));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -606,7 +641,10 @@ public class DatabaseManager {
     }
     
     public int getInDeliveryDronesCount() {
-        String sql = "SELECT COUNT(DISTINCT DroneID) as total FROM Missions WHERE MissionStatus = 'in_desfasurare'";
+        // Numără DOAR dronele cu misiuni active (neexpirate)
+        String sql = "SELECT COUNT(DISTINCT DroneID) as total FROM Missions " +
+                     "WHERE MissionStatus = 'in_desfasurare' " +
+                     "AND DATE_ADD(StartTime, INTERVAL DurationMin MINUTE) > NOW()";
         try (Connection conn = DatabaseConnection.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {

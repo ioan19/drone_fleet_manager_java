@@ -13,6 +13,7 @@ public class DeliveryRequest {
     private String droneModel;
     private String operatorName; // Numele operatorului care a creat cererea
     
+    // Constructor complet
     public DeliveryRequest(int requestId, int operatorId, String startCoord, String endCoord, 
                           double weight, String notes, String status, 
                           String requestDate, int assignedDroneId, String droneModel) {
@@ -48,6 +49,10 @@ public class DeliveryRequest {
     public int getAssignedDroneId() { return assignedDroneId; }
     public String getDroneModel() { return droneModel != null ? droneModel : "N/A"; }
     public String getOperatorName() { return operatorName != null ? operatorName : "N/A"; }
+    
+    // Alias methods for compatibility
+    public String getOperator() { return getOperatorName(); }
+    public String getDestination() { return getEndCoord(); }
     
     // Setters
     public void setOperatorName(String operatorName) { 

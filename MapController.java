@@ -20,6 +20,7 @@ public class MapController {
     @FXML private WebView webView;
     @FXML private ComboBox<String> missionTypeCombo;
     @FXML private TextField weightField;
+    @FXML private TextArea notesField;  // NOU: pentru note la cerere
     @FXML private Label statusLabel;
     @FXML private Label weatherLabel;
     @FXML private Label windLabel;
@@ -28,6 +29,7 @@ public class MapController {
     @FXML private Label droneLabel;
     @FXML private Button confirmButton;
     @FXML private javafx.scene.layout.VBox weightContainer;
+    @FXML private javafx.scene.layout.VBox notesContainer;  // NOU
     @FXML private javafx.scene.layout.VBox resultCard;
 
     private WebEngine engine;
@@ -36,13 +38,19 @@ public class MapController {
     private String endCoord;
     private double calculatedDistance;
     private double calculatedCost;
-    private boolean weatherSafe = true; // Default true pentru cazul când API-ul nu funcționează
+    private boolean weatherSafe = true;
+    
+    private User currentUser;  // NOU: referință la userul curent
 
     @FXML
     public void initialize() {
         System.out.println("[MapController] Initialize started");
+        
+        currentUser = Session.getCurrentUser();
+        
         setupMissionTypes();
         setupMap();
+        setupUIForRole();  // NOU: configurare UI bazată pe rol
         
         if (distanceLabel != null) distanceLabel.setText("0.0 km");
         if (costLabel != null) costLabel.setText("0.00 RON");
@@ -50,7 +58,50 @@ public class MapController {
         if (windLabel != null) windLabel.setText("Vant: -- km/h");
         if (confirmButton != null) confirmButton.setDisable(true);
         
-        System.out.println("[MapController] Initialize completed");
+        System.out.println("[MapController] Initialize completed for user: " + 
+            (currentUser != null ? currentUser.getUsername() + " (" + currentUser.getRole() + ")" : "NULL"));
+    }
+
+    /**
+     * NOU: Configurare UI bazată pe rolul utilizatorului
+     */
+    private void setupUIForRole() {
+        if (currentUser == null) return;
+        
+        if (currentUser.isOperator()) {
+            // Operatorul poate doar să creeze CERERI de livrare
+            // NU poate lansa direct drone
+            if (missionTypeCombo != null) {
+                missionTypeCombo.setItems(FXCollections.observableArrayList("Livrare"));
+                missionTypeCombo.setValue("Livrare");
+                missionTypeCombo.setDisable(true);  // Operatorul face doar livrări
+            }
+            
+            // Afișează câmpul de note pentru cerere
+            if (notesContainer != null) {
+                notesContainer.setVisible(true);
+                notesContainer.setManaged(true);
+            }
+            
+            // Schimbă textul butonului
+            if (confirmButton != null) {
+                confirmButton.setText("📝 TRIMITE CEREREA");
+            }
+            
+            // Ascunde cardul cu drona alocată (operatorul nu vede asta)
+            if (resultCard != null) {
+                resultCard.setVisible(false);
+            }
+            
+            showStatus("Selectează punctele pe hartă pentru a crea o cerere de livrare", Color.web("#3498db"));
+            
+        } else {
+            // Admin - comportament normal
+            if (notesContainer != null) {
+                notesContainer.setVisible(false);
+                notesContainer.setManaged(false);
+            }
+        }
     }
 
     private void setupMissionTypes() {
@@ -89,7 +140,11 @@ public class MapController {
                         window.setMember("javaApp", new JavaScriptBridge());
                         System.out.println("[MapController] JavaScriptBridge connected successfully!");
                         
-                        showStatus("Harta incarcata cu succes! Click pentru START", Color.GREEN);
+                        if (currentUser != null && currentUser.isOperator()) {
+                            showStatus("Harta încărcată! Click pentru a seta punctul START", Color.GREEN);
+                        } else {
+                            showStatus("Harta incarcata cu succes! Click pentru START", Color.GREEN);
+                        }
                     } catch (Exception e) {
                         System.err.println("[MapController] ERROR connecting bridge: " + e.getMessage());
                         e.printStackTrace();
@@ -181,6 +236,30 @@ public class MapController {
             }
             System.out.println("[MapController] Weight: " + weight + " kg");
             
+            // ========== COMPORTAMENT DIFERIT PENTRU OPERATOR ==========
+            if (currentUser != null && currentUser.isOperator()) {
+                // Operatorul NU selectează dronă - doar trimite cererea
+                calculatedCost = calculateCost(calculatedDistance, missionType, weight);
+                
+                // Actualizează UI
+                if (distanceLabel != null) {
+                    distanceLabel.setText(String.format("%.2f km", calculatedDistance));
+                }
+                if (costLabel != null) {
+                    costLabel.setText(String.format("%.2f RON (estimat)", calculatedCost));
+                }
+                
+                // Activează butonul de trimitere cerere
+                if (confirmButton != null) {
+                    confirmButton.setDisable(false);
+                }
+                
+                showStatus("Rută calculată! Completează greutatea și apasă TRIMITE CEREREA", Color.GREEN);
+                return;
+            }
+            
+            // ========== COMPORTAMENT ADMIN (original) ==========
+            
             // 3. Selectează drona optimă
             selectedDrone = selectOptimalDrone(missionType, weight, calculatedDistance);
             
@@ -207,7 +286,6 @@ public class MapController {
                 weatherSafe = weather.isSafeToFly;
             } catch (Exception e) {
                 System.err.println("[MapController] Weather API failed, using defaults: " + e.getMessage());
-                // Fallback - creăm date meteo default sigure
                 weather = new WeatherService.WeatherData(20.0, 5.0, "Clear");
                 weatherSafe = true;
             }
@@ -215,7 +293,7 @@ public class MapController {
             // 6. Actualizează UI-ul
             updateMissionDisplay(weather);
             
-            // 7. IMPORTANT: Activează butonul dacă avem dronă și meteo sigur
+            // 7. Activează butonul dacă avem dronă și meteo sigur
             if (confirmButton != null) {
                 boolean canConfirm = selectedDrone != null && weatherSafe;
                 confirmButton.setDisable(!canConfirm);
@@ -271,7 +349,6 @@ public class MapController {
                     continue;
                 }
             }
-            // Pentru "test" - acceptăm orice tip de dronă
             
             // Verifică autonomia (distanța dus-întors + 20% rezervă)
             double timeNeeded = (distance * 2) * 1.2;
@@ -280,7 +357,7 @@ public class MapController {
                 continue;
             }
             
-            // Calculează scorul (preferă drone cu autonomie apropiată de necesar)
+            // Calculează scorul
             double autonomyRatio = drone.getAutonomy() / timeNeeded;
             double score = 1.0 / Math.abs(autonomyRatio - 1.5);
             
@@ -302,7 +379,7 @@ public class MapController {
     }
 
     private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-        final int R = 6371; // Raza Pământului în km
+        final int R = 6371;
         
         double latDistance = Math.toRadians(lat2 - lat1);
         double lonDistance = Math.toRadians(lon2 - lon1);
@@ -365,8 +442,20 @@ public class MapController {
 
     @FXML
     private void confirmMission() {
-        if (selectedDrone == null || startCoord == null || endCoord == null) {
+        if (startCoord == null || endCoord == null) {
             showStatus("Seteaza start si destinatie pe harta!", Color.RED);
+            return;
+        }
+        
+        // ========== COMPORTAMENT OPERATOR: Creează cerere de livrare ==========
+        if (currentUser != null && currentUser.isOperator()) {
+            submitDeliveryRequest();
+            return;
+        }
+        
+        // ========== COMPORTAMENT ADMIN: Lansează direct misiunea ==========
+        if (selectedDrone == null) {
+            showStatus("Nu a fost selectată nicio dronă!", Color.RED);
             return;
         }
         
@@ -409,6 +498,73 @@ public class MapController {
             System.err.println("[MapController] ERROR saving mission:");
             e.printStackTrace();
             showStatus("Eroare la salvare: " + e.getMessage(), Color.RED);
+        }
+    }
+
+    /**
+     * NOU: Operator trimite o cerere de livrare către Admin
+     */
+    private void submitDeliveryRequest() {
+        try {
+            // Validare greutate
+            double weight = 1.0;
+            try {
+                String weightText = weightField.getText().trim();
+                if (!weightText.isEmpty()) {
+                    weight = Double.parseDouble(weightText);
+                }
+            } catch (NumberFormatException e) {
+                showStatus("Greutate invalidă! Folosește un număr (ex: 2.5)", Color.RED);
+                return;
+            }
+            
+            if (weight <= 0 || weight > 50) {
+                showStatus("Greutatea trebuie să fie între 0.1 și 50 kg!", Color.RED);
+                return;
+            }
+            
+            // Obține notele (opționale)
+            String notes = "";
+            if (notesField != null && notesField.getText() != null) {
+                notes = notesField.getText().trim();
+            }
+            
+            // Creează cererea în baza de date
+            DatabaseManager.getInstance().createDeliveryRequest(
+                currentUser.getUserId(),
+                startCoord,
+                endCoord,
+                weight,
+                notes
+            );
+            
+            System.out.println("[MapController] Delivery request created by operator: " + currentUser.getUsername());
+            
+            // Mesaj de succes
+            Alert success = new Alert(Alert.AlertType.INFORMATION);
+            success.setTitle("Cerere Trimisă");
+            success.setHeaderText("Cererea de livrare a fost trimisă!");
+            success.setContentText(String.format(
+                "Cererea ta a fost trimisă către administrator.\n\n" +
+                "Detalii:\n" +
+                "• Distanță: %.2f km\n" +
+                "• Greutate: %.1f kg\n" +
+                "• Cost estimat: %.2f RON\n\n" +
+                "Vei fi notificat când cererea va fi aprobată.",
+                calculatedDistance,
+                weight,
+                calculatedCost
+            ));
+            success.showAndWait();
+            
+            // Închide fereastra
+            Stage stage = (Stage) confirmButton.getScene().getWindow();
+            stage.close();
+            
+        } catch (Exception e) {
+            System.err.println("[MapController] ERROR creating delivery request:");
+            e.printStackTrace();
+            showStatus("Eroare la trimiterea cererii: " + e.getMessage(), Color.RED);
         }
     }
 

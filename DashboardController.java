@@ -29,7 +29,7 @@ public class DashboardController {
     @FXML private Label maintenanceLabel;
     @FXML private Label userInfoLabel;
     @FXML private Label inDeliveryLabel;
-    @FXML private Label openTicketsLabel;  // NOU: pentru tehnician
+    @FXML private Label openTicketsLabel;
 
     // ===== TABEL DRONE (Admin) =====
     @FXML private TableView<Drone> droneTable;
@@ -41,10 +41,12 @@ public class DashboardController {
     @FXML private TableColumn<Drone, String> colMissionType;
     @FXML private TableColumn<Drone, String> colTime;
 
-    // ===== TABEL CERERI ACCEPTATE - OPERATOR =====
+    // ===== TABEL CERERI - OPERATOR =====
     @FXML private TableView<DeliveryRequest> requestTable;
     @FXML private TableColumn<DeliveryRequest, Integer> colRequestId;
     @FXML private TableColumn<DeliveryRequest, String> colRequestStatus;
+    @FXML private TableColumn<DeliveryRequest, String> colRequestStart;  // NOU
+    @FXML private TableColumn<DeliveryRequest, String> colRequestEnd;    // NOU
     @FXML private TableColumn<DeliveryRequest, Double> colWeight;
     @FXML private TableColumn<DeliveryRequest, String> colDroneAssigned;
     @FXML private TableColumn<DeliveryRequest, String> colRequestDate;
@@ -72,21 +74,21 @@ public class DashboardController {
     @FXML private Button addDroneButton;
     @FXML private Button setMaintenanceButton;
     @FXML private Button removeDroneButton;
-    @FXML private Button removeMaintenanceButton;  // Buton pentru scoaterea din mentenanță
+    @FXML private Button removeMaintenanceButton;
     @FXML private Button openMapButton;
     @FXML private Button acceptRequestButton;
     @FXML private Button rejectRequestButton;
-    @FXML private Button completeRepairButton;   // NOU: finalizează reparația
-    @FXML private Button startRepairButton;      // NOU: începe lucrul
+    @FXML private Button completeRepairButton;
+    @FXML private Button startRepairButton;
 
     // ===== CONTAINERE =====
     @FXML private VBox droneSection;
     @FXML private VBox operatorSection;
     @FXML private VBox adminRequestSection;
-    @FXML private VBox technicianSection;        // NOU: secțiune tehnician
+    @FXML private VBox technicianSection;
     @FXML private javafx.scene.layout.HBox statsBox;
     @FXML private VBox inDeliveryCard;
-    @FXML private VBox ticketsCard;              // NOU: card tichete deschise
+    @FXML private VBox ticketsCard;
 
     @FXML private Label statusLabel;
     @FXML private Label sectionTitle;
@@ -138,7 +140,7 @@ public class DashboardController {
         if (currentUser.isOperator()) {
             System.out.println("[Dashboard] Setting up UI for OPERATOR");
             
-            if (sectionTitle != null) sectionTitle.setText("Livrările Mele Acceptate");
+            if (sectionTitle != null) sectionTitle.setText("Cererile Mele de Livrare");
             
             // Ascunde secțiunile care nu sunt pentru operator
             hideSection(droneSection);
@@ -146,6 +148,7 @@ public class DashboardController {
             hideSection(adminRequestSection);
             hideSection(technicianSection);
             hideSection(ticketTable);
+            hideSection(ticketsCard);
             
             // Afișează secțiunea operator
             showSection(operatorSection);
@@ -161,7 +164,11 @@ public class DashboardController {
             hideButton(completeRepairButton);
             hideButton(startRepairButton);
             
-            showButton(openMapButton); // Poate trimite cereri noi
+            // Butonul de hartă pentru operator - text diferit
+            showButton(openMapButton);
+            if (openMapButton != null) {
+                openMapButton.setText("📝 Creează Cerere Nouă");
+            }
             
             // Ascunde statistici complete
             if (statsBox != null) {
@@ -213,25 +220,30 @@ public class DashboardController {
             showSection(adminRequestSection);
             showSection(pendingRequestTable);
             showSection(inDeliveryCard);
+            showSection(ticketsCard);
             
             // Ascunde secțiunile care nu sunt pentru admin
             hideSection(operatorSection);
             hideSection(requestTable);
             hideSection(technicianSection);
             hideSection(ticketTable);
-            hideSection(ticketsCard);
             
             // Butoane admin
             showButton(addDroneButton);
             showButton(removeDroneButton);
             showButton(setMaintenanceButton);
-            showButton(removeMaintenanceButton);  // Buton pentru scoaterea din mentenanță
+            showButton(removeMaintenanceButton);
             showButton(openMapButton);
             showButton(acceptRequestButton);
             showButton(rejectRequestButton);
             
             hideButton(completeRepairButton);
             hideButton(startRepairButton);
+            
+            // Text normal pentru admin
+            if (openMapButton != null) {
+                openMapButton.setText("🗺️ Planifică Misiune");
+            }
         }
     }
     
@@ -327,15 +339,36 @@ public class DashboardController {
     private void setupOperatorRequestTable() {
         if (requestTable == null) return;
         
-        System.out.println("[Dashboard] Setting up operator accepted requests table");
+        System.out.println("[Dashboard] Setting up operator requests table (ALL requests)");
         
         if (colRequestId != null) colRequestId.setCellValueFactory(cell -> new SimpleObjectProperty<>(cell.getValue().getRequestId()));
         if (colRequestStatus != null) colRequestStatus.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getStatusDisplay()));
+        if (colRequestStart != null) colRequestStart.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getStartCoordShort()));
+        if (colRequestEnd != null) colRequestEnd.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getEndCoordShort()));
         if (colWeight != null) colWeight.setCellValueFactory(cell -> new SimpleObjectProperty<>(cell.getValue().getWeight()));
         if (colDroneAssigned != null) colDroneAssigned.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getDroneModel()));
         if (colRequestDate != null) colRequestDate.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getRequestDate()));
 
         requestTable.setItems(requestList);
+        
+        // Row styling pentru cereri
+        requestTable.setRowFactory(tv -> new TableRow<DeliveryRequest>() {
+            @Override
+            protected void updateItem(DeliveryRequest item, boolean empty) {
+                super.updateItem(item, empty);
+                if (item == null || empty) {
+                    setStyle("");
+                } else {
+                    String status = item.getStatus();
+                    if ("pending".equals(status)) setStyle("-fx-background-color: #fff3cd;");  // Galben - în așteptare
+                    else if ("assigned".equals(status)) setStyle("-fx-background-color: #d4edda;");  // Verde - acceptată
+                    else if ("in_progress".equals(status)) setStyle("-fx-background-color: #d1ecf1;");  // Albastru - în desfășurare
+                    else if ("completed".equals(status)) setStyle("-fx-background-color: #e2e3e5;");  // Gri - finalizată
+                    else if ("rejected".equals(status)) setStyle("-fx-background-color: #f8d7da;");  // Roșu - respinsă
+                    else setStyle("");
+                }
+            }
+        });
     }
 
     private void setupPendingRequestTable() {
@@ -393,9 +426,9 @@ public class DashboardController {
             ticketList.setAll(db.getOpenMaintenanceTickets());
             
         } else if (currentUser.isOperator()) {
-            // Operatorul vede DOAR cererile ACCEPTATE
-            System.out.println("[Dashboard] Loading ACCEPTED requests for operator: " + currentUser.getUserId());
-            requestList.setAll(db.getAcceptedDeliveryRequests(currentUser.getUserId()));
+            // Operatorul vede TOATE cererile sale (inclusiv pending și rejected)
+            System.out.println("[Dashboard] Loading ALL requests for operator: " + currentUser.getUserId());
+            requestList.setAll(db.getAllDeliveryRequestsForOperator(currentUser.getUserId()));
             
         } else {
             // Admin vede toate dronele și cererile pending
@@ -768,13 +801,11 @@ public class DashboardController {
     }
 
     /**
-     * Scoate drona selectată din mentenanță (pentru Admin/Tehnician)
-     * Folosit când se dorește reactivarea rapidă fără detalii suplimentare
+     * Scoate drona selectată din mentenanță (pentru Admin)
      */
     @FXML
     private void removeMaintenance() {
-        // Verifică permisiunile - doar Admin sau Tehnician pot folosi această funcție
-        if (!currentUser.isAdmin() && !currentUser.isTechnician()) {
+        if (!currentUser.isAdmin()) {
             showStatus("Acces interzis!", Color.RED);
             return;
         }
@@ -786,13 +817,11 @@ public class DashboardController {
             return;
         }
         
-        // Verifică dacă drona este în mentenanță
         if (!"mentenanta".equals(selected.getStatus())) {
             showStatus("Drona selectata nu este in mentenanta!", Color.ORANGE);
             return;
         }
         
-        // Confirmare
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
         confirm.setTitle("Scoate din Mentenanta");
         confirm.setHeaderText("Confirmare reactivare drona");
@@ -800,12 +829,7 @@ public class DashboardController {
         
         if (confirm.showAndWait().get() == ButtonType.OK) {
             try {
-                // Actualizează statusul dronei la 'activa'
                 DatabaseManager.updateDroneStatus(selected.getId(), "activa");
-                
-                // Opțional: închide tichetul de mentenanță asociat (dacă există)
-                // DatabaseManager.getInstance().closeMaintenanceTicketForDrone(selected.getId());
-                
                 showStatus("Drona " + selected.getModel() + " a fost reactivata!", Color.GREEN);
                 loadDataFromDB();
                 updateStatistics();
@@ -834,7 +858,7 @@ public class DashboardController {
             
             // Titlu diferit pentru operator
             if (currentUser.isOperator()) {
-                mapStage.setTitle("Trimite Cerere de Livrare - Harta");
+                mapStage.setTitle("Creează Cerere de Livrare - Harta");
             } else {
                 mapStage.setTitle("Planificare Misiune - Harta Interactiva");
             }
